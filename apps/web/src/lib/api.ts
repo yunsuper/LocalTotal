@@ -26,7 +26,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     try {
         res = await fetch(`${API_URL}${path}`, {
             ...init,
-            headers: { "Content-Type": "application/json", ...init?.headers },
+            headers: {
+                "Content-Type": "application/json",
+                "X-LocalTotal": "1", // 백엔드 보안 미들웨어가 요구하는 헤더
+                ...init?.headers,
+            },
             cache: "no-store",
         });
     } catch {

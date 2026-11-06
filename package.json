@@ -5,7 +5,9 @@
         "apps/*"
     ],
     "scripts": {
-        "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+        "dev": "concurrently -n clam,api,web -c yellow,blue,green \"npm:dev:clam\" \"npm:dev:api\" \"npm:dev:web\"",
+        "dev:app": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+        "dev:clam": "sh -c 'freshclam --quiet || echo \"시그니처 갱신 실패: 기존 DB로 계속합니다\"; exec clamd --foreground'",
         "dev:api": "npm run start:dev -w apps/api",
         "dev:web": "npm run dev -w apps/web -- -H 127.0.0.1 -p 3000"
     },

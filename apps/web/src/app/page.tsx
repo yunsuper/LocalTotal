@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS: AppSettings = {
     vtAllThreshold: 30,
     maxFileSizeMb: 200,
 };
+const ENGINE_POLL_MS = 5000;
 
 const isRunning = (job: JobView) =>
     job.summary.status === "collecting" || job.summary.status === "running";
@@ -65,6 +66,10 @@ export default function Home() {
     const [jobs, setJobs] = useState<JobView[]>([]);
     const sources = useRef(new Map<string, EventSource>());
 
+    const enginesLoaded = engines !== null;
+    const clamReady =
+        engines?.find((e) => e.name === "clamav")?.available ?? false;
+
     // 첫 진입 시 엔진 상태 조회: 상태 변경은 Promise 콜백 안에서만
     useEffect(() => {
         let cancelled = false;
@@ -81,6 +86,17 @@ export default function Home() {
             cancelled = true;
         };
     }, []);
+
+    // clamd가 시그니처를 불러오는 동안(수십 초) 준비될 때까지 주기적으로 다시 확인
+    useEffect(() => {
+        if (!enginesLoaded || clamReady) return;
+        const timer = setInterval(() => {
+            getEngines()
+                .then((list) => setEngines(list))
+                .catch(() => undefined);
+        }, ENGINE_POLL_MS);
+        return () => clearInterval(timer);
+    }, [enginesLoaded, clamReady]);
 
     // 설정값 (검사 폼 기본값). 실패하면 기본값 사용
     useEffect(() => {
@@ -250,6 +266,13 @@ export default function Home() {
                     새로고침
                 </button>
             </section>
+
+            {enginesLoaded && !clamReady && (
+                <p className="-mt-3 mb-6 text-xs text-zinc-500">
+                    ClamAV를 준비하는 중이에요. 시그니처를 불러오는 데 수십 초
+                    걸리며, 준비되면 자동으로 표시돼요.
+                </p>
+            )}
 
             {/* 설정을 불러온 뒤 기본값을 반영하도록 key로 다시 마운트 */}
             <ScanForm
