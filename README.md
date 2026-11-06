@@ -169,6 +169,17 @@ printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H
 
 검사 화면에 `/tmp/eicar.com`을 넣으면 **위험**(ClamAV `Win.Test.EICAR_HDB-1`)으로 판정되어야 합니다.
 
+## 테스트
+
+판정 규칙과 제외 목록 매칭은 Jest 단위 테스트로 검증합니다. 실제 엔진이나 악성코드 없이, 가짜 엔진 결과로 로직만 확인합니다.
+
+```bash
+npm test -w apps/api
+```
+
+- `verdict.spec.ts` — 위험·주의·의심 경계값(VT 2/3/4/5개), ClamAV 우선, 오류 판정
+- `exclusion-matcher.spec.ts` — `/mods`가 `/mods-old`에 걸리지 않는지, 중첩 폴더 우선순위, 대소문자 무시, 해시 매칭
+
 ## 데이터 저장 위치
 
 `~/Library/Application Support/LocalTotal/`
