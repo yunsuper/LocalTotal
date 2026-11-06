@@ -15,6 +15,11 @@ export const FINAL_VERDICT: Record<
         className:
             "border-red-300 bg-red-50 text-red-700 dark:border-red-500/40 dark:bg-red-500/15 dark:text-red-300",
     },
+    caution: {
+        label: "주의",
+        className:
+            "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-500/40 dark:bg-orange-500/15 dark:text-orange-300",
+    },
     suspicious: {
         label: "의심",
         className:

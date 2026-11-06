@@ -7,6 +7,7 @@ export interface EngineStatus {
   name: EngineName;
   available: boolean;
   version: string | null;
+  usage?: { today: number; limit: number };
 }
 
 @Injectable()
@@ -29,6 +30,9 @@ export class EnginesService {
           name: e.name,
           available,
           version: available ? await e.version() : null,
+          ...(e.name === 'virustotal'
+            ? { usage: this.virustotal.usage() }
+            : {}),
         };
       }),
     );

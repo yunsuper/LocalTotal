@@ -14,6 +14,9 @@ import { aggregateVerdict, FinalVerdict } from './verdict';
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // clamd.conf StreamMaxLength와 맞춤
 
+/** always: 항상 VT 조회 / if-detected: ClamAV 탐지 시에만 / never: 조회 안 함 */
+export type VtPolicy = 'always' | 'if-detected' | 'never';
+
 export interface FileScanResult {
   path: string;
   size: number;
@@ -24,48 +27,33 @@ export interface FileScanResult {
   scannedAt: string;
 }
 
+export interface ResolvedTarget {
+  path: string;
+  kind: 'file' | 'directory';
+}
+
 @Injectable()
 export class ScansService {
   constructor(private readonly engines: EnginesService) {}
 
+  /** 단일 파일 검사 (POST /scans/file) */
   async scanFile(
     inputPath: string,
     useVirusTotal: boolean,
   ): Promise<FileScanResult> {
-    const absPath = await this.resolveReadableFile(inputPath);
-    const { size } = await stat(absPath);
-    const sha256 = await sha256File(absPath);
-
-    const tasks: Promise<EngineResult>[] = [
-      size > MAX_FILE_SIZE
-        ? Promise.resolve<EngineResult>({
-            engine: 'clamav',
-            verdict: 'error',
-            detail: {
-              message: `크기 초과 (${Math.round(size / 1024 / 1024)}MB > 200MB)`,
-            },
-            durationMs: 0,
-          })
-        : this.engines.clamav.scanFile(absPath),
-    ];
-
+    const target = await this.resolveTarget(inputPath);
+    if (target.kind !== 'file') {
+      throw new BadRequestException({
+        code: 'NOT_A_FILE',
+        message: '파일 경로가 아닙니다 (폴더는 폴더 검사를 사용하세요)',
+      });
+    }
     const vtOn = useVirusTotal && (await this.engines.virustotal.isAvailable());
-    if (vtOn) tasks.push(this.engines.virustotal.lookupHash(sha256));
-
-    const results = await Promise.all(tasks);
-
-    return {
-      path: absPath,
-      size,
-      sha256,
-      verdict: aggregateVerdict(results),
-      results,
-      externalSent: vtOn ? 'sha256' : 'none',
-      scannedAt: new Date().toISOString(),
-    };
+    return this.scanResolvedFile(target.path, vtOn ? 'always' : 'never');
   }
 
-  private async resolveReadableFile(inputPath: string): Promise<string> {
+  /** 사용자가 입력한 경로를 실제 경로로 바꾸고 읽을 수 있는지 확인 */
+  async resolveTarget(inputPath: string): Promise<ResolvedTarget> {
     if (!isAbsolute(inputPath)) {
       throw new BadRequestException({
         code: 'INVALID_PATH',
@@ -75,21 +63,21 @@ export class ScansService {
     try {
       const real = await realpath(inputPath);
       const info = await stat(real);
-      if (!info.isFile()) {
+      if (!info.isFile() && !info.isDirectory()) {
         throw new BadRequestException({
-          code: 'NOT_A_FILE',
-          message: '파일 경로가 아닙니다',
+          code: 'INVALID_PATH',
+          message: '파일이나 폴더가 아닙니다',
         });
       }
       await access(real, constants.R_OK);
-      return real;
+      return { path: real, kind: info.isFile() ? 'file' : 'directory' };
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
       const code = (err as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') {
         throw new NotFoundException({
           code: 'NOT_FOUND',
-          message: '파일을 찾을 수 없습니다',
+          message: `경로를 찾을 수 없습니다: ${inputPath}`,
         });
       }
       if (code === 'EACCES' || code === 'EPERM') {
@@ -101,4 +89,79 @@ export class ScansService {
       throw err;
     }
   }
+
+  /** 이미 확인된 절대 경로 1개를 검사. 파일 오류는 예외 대신 '오류' 결과로 돌려준다. */
+  async scanResolvedFile(
+    absPath: string,
+    vtPolicy: VtPolicy,
+  ): Promise<FileScanResult> {
+    let size = 0;
+    let sha256 = '';
+    try {
+      size = (await stat(absPath)).size;
+      sha256 = await sha256File(absPath);
+    } catch (err) {
+      return {
+        path: absPath,
+        size,
+        sha256,
+        verdict: 'error',
+        results: [
+          {
+            engine: 'clamav',
+            verdict: 'error',
+            detail: { message: describeFsError(err) },
+            durationMs: 0,
+          },
+        ],
+        externalSent: 'none',
+        scannedAt: new Date().toISOString(),
+      };
+    }
+
+    const clamTask: Promise<EngineResult> =
+      size > MAX_FILE_SIZE
+        ? Promise.resolve({
+            engine: 'clamav',
+            verdict: 'error',
+            detail: {
+              message: `크기 초과 (${Math.round(size / 1024 / 1024)}MB > 200MB)`,
+            },
+            durationMs: 0,
+          })
+        : this.engines.clamav.scanFile(absPath);
+
+    let results: EngineResult[];
+    if (vtPolicy === 'always') {
+      results = await Promise.all([
+        clamTask,
+        this.engines.virustotal.lookupHash(sha256),
+      ]);
+    } else {
+      const clam = await clamTask;
+      results =
+        vtPolicy === 'if-detected' && clam.verdict === 'malicious'
+          ? [clam, await this.engines.virustotal.lookupHash(sha256)]
+          : [clam];
+    }
+
+    return {
+      path: absPath,
+      size,
+      sha256,
+      verdict: aggregateVerdict(results),
+      results,
+      externalSent: results.some((r) => r.engine === 'virustotal')
+        ? 'sha256'
+        : 'none',
+      scannedAt: new Date().toISOString(),
+    };
+  }
+}
+
+function describeFsError(err: unknown): string {
+  const code = (err as NodeJS.ErrnoException).code;
+  if (code === 'ENOENT') return '파일이 사라짐';
+  if (code === 'EACCES' || code === 'EPERM') return '읽기 권한 없음';
+  return (err as Error).message;
 }
