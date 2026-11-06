@@ -103,6 +103,19 @@ export class ScanJobsService {
     return { ...this.summary(job), results: [...job.results] };
   }
 
+  /** 격리 등에서 사용: 검사 결과에 실제로 있는 파일인지 확인 */
+  findResult(scanId: string, path: string): FileScanResult {
+    const job = this.getJob(scanId);
+    const result = job.results.find((r) => r.path === path);
+    if (!result) {
+      throw new NotFoundException({
+        code: 'RESULT_NOT_FOUND',
+        message: '검사 결과에 없는 파일입니다',
+      });
+    }
+    return result;
+  }
+
   events(id: string): Observable<MessageEvent> {
     const job = this.getJob(id);
     const head = of<MessageEvent>({

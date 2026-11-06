@@ -11,17 +11,19 @@ export interface JobView {
     summary: ScanJobSummary;
     results: FileScanResult[];
     error: string | null;
+    quarantined: string[]; // 이 작업에서 격리한 파일 경로
 }
 
 interface Props {
     job: JobView;
     onCancel: (id: string) => void;
+    onQuarantine: (jobId: string, path: string) => Promise<void>;
 }
 
 const baseName = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 
-export function ScanJobPanel({ job, onCancel }: Props) {
-    const { summary, results, error } = job;
+export function ScanJobPanel({ job, onCancel, onQuarantine }: Props) {
+    const { summary, results, error, quarantined } = job;
     const running =
         summary.status === "collecting" || summary.status === "running";
     const percent =
@@ -41,6 +43,15 @@ export function ScanJobPanel({ job, onCancel }: Props) {
         summary.status === "done" &&
         summary.total === 1 &&
         results.length === 1;
+
+    const card = (r: FileScanResult) => (
+        <ScanResultCard
+            key={r.path}
+            result={r}
+            quarantined={quarantined.includes(r.path)}
+            onQuarantine={() => onQuarantine(summary.id, r.path)}
+        />
+    );
 
     return (
         <section className="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
@@ -127,12 +138,10 @@ export function ScanJobPanel({ job, onCancel }: Props) {
             {/* 결과 */}
             <div className="mt-4 space-y-4">
                 {isSingleFile ? (
-                    <ScanResultCard result={results[0]} />
+                    card(results[0])
                 ) : (
                     <>
-                        {flagged.map((r) => (
-                            <ScanResultCard key={r.path} result={r} />
-                        ))}
+                        {flagged.map(card)}
                         {clean.length > 0 && (
                             <details className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800">
                                 <summary className="cursor-pointer text-sm">

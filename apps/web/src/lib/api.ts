@@ -1,6 +1,7 @@
 import type {
     EngineStatus,
     FileScanResult,
+    QuarantineEntry,
     ScanJobDetail,
     ScanJobSummary,
 } from "./types";
@@ -70,3 +71,26 @@ export const cancelScan = (id: string) =>
 
 export const scanEventsUrl = (id: string) =>
     `${API_URL}/scans/${encodeURIComponent(id)}/events`;
+
+/* ---------- 격리 ---------- */
+
+export const listQuarantine = () => request<QuarantineEntry[]>("/quarantine");
+
+export const quarantineFile = (scanId: string, path: string) =>
+    request<QuarantineEntry>("/quarantine", {
+        method: "POST",
+        body: JSON.stringify({ scanId, path }),
+    });
+
+export const restoreQuarantine = (id: string) =>
+    request<{ restoredPath: string }>(
+        `/quarantine/${encodeURIComponent(id)}/restore`,
+        {
+            method: "POST",
+        },
+    );
+
+export const deleteQuarantine = (id: string) =>
+    request<{ removed: true }>(`/quarantine/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+    });

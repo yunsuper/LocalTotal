@@ -1,6 +1,11 @@
+"use client";
+
+import { useState } from "react";
 import { formatBytes, formatTime } from "@/lib/format";
 import { ENGINE_LABEL, ENGINE_VERDICT, FINAL_VERDICT } from "@/lib/labels";
 import type { EngineResult, FileScanResult } from "@/lib/types";
+
+const QUARANTINABLE = new Set(["danger", "caution", "suspicious"]);
 
 function EngineDetail({ r }: { r: EngineResult }) {
     const stats = r.detail?.stats;
@@ -29,9 +34,36 @@ function EngineDetail({ r }: { r: EngineResult }) {
     return <span>{r.detail?.message ?? "—"}</span>;
 }
 
-export function ScanResultCard({ result }: { result: FileScanResult }) {
+interface Props {
+    result: FileScanResult;
+    quarantined?: boolean;
+    onQuarantine?: () => Promise<void>;
+}
+
+export function ScanResultCard({
+    result,
+    quarantined = false,
+    onQuarantine,
+}: Props) {
+    const [stage, setStage] = useState<"idle" | "confirm" | "working">("idle");
+    const [error, setError] = useState<string | null>(null);
     const verdict = FINAL_VERDICT[result.verdict];
     const fileName = result.path.split("/").pop() ?? result.path;
+    const canQuarantine =
+        Boolean(onQuarantine) && QUARANTINABLE.has(result.verdict);
+
+    const doQuarantine = async () => {
+        if (!onQuarantine) return;
+        setStage("working");
+        setError(null);
+        try {
+            await onQuarantine();
+            setStage("idle");
+        } catch (e) {
+            setError((e as Error).message);
+            setStage("idle");
+        }
+    };
 
     return (
         <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/50">
@@ -103,12 +135,55 @@ export function ScanResultCard({ result }: { result: FileScanResult }) {
                 </tbody>
             </table>
 
-            <p className="mt-3 text-xs text-zinc-500">
-                외부 전송:{" "}
-                {result.externalSent === "sha256"
-                    ? "SHA-256 해시만"
-                    : "없음 (로컬 검사만)"}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-zinc-500">
+                    외부 전송:{" "}
+                    {result.externalSent === "sha256"
+                        ? "SHA-256 해시만"
+                        : "없음 (로컬 검사만)"}
+                </p>
+
+                {canQuarantine &&
+                    (quarantined ? (
+                        <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                            격리됨 · 격리함에서 복원할 수 있어요
+                        </span>
+                    ) : stage === "confirm" ? (
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-zinc-600 dark:text-zinc-400">
+                                격리함으로 옮길까요?
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => void doQuarantine()}
+                                className="rounded-md bg-red-600 px-3 py-1 font-semibold text-white hover:bg-red-500"
+                            >
+                                격리
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setStage("idle")}
+                                className="rounded-md border border-zinc-300 px-3 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                            >
+                                취소
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            disabled={stage === "working"}
+                            onClick={() => setStage("confirm")}
+                            className="rounded-md border border-red-300 px-3 py-1 text-sm text-red-700 hover:bg-red-50 disabled:opacity-40 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
+                        >
+                            {stage === "working" ? "격리 중…" : "격리"}
+                        </button>
+                    ))}
+            </div>
+            {error && (
+                <p className="mt-2 text-sm text-red-700 dark:text-red-300">
+                    {error}
+                </p>
+            )}
         </article>
     );
 }

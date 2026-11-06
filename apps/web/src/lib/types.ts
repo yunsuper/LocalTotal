@@ -61,3 +61,15 @@ export interface ScanJobSummary {
 export interface ScanJobDetail extends ScanJobSummary {
     results: FileScanResult[];
 }
+
+export interface QuarantineEntry {
+    id: string;
+    originalPath: string;
+    storedName: string;
+    sha256: string;
+    size: number;
+    mode: number;
+    verdict: FinalVerdict;
+    detections: { engine: string; threatName?: string }[];
+    quarantinedAt: string;
+}

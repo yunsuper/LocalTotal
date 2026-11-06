@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
 import { EngineBadges } from "@/components/EngineBadges";
 import { ScanForm } from "@/components/ScanForm";
 import { ScanJobPanel, type JobView } from "@/components/ScanJobPanel";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import {
     cancelScan,
     getEngines,
     getScan,
+    quarantineFile,
     scanEventsUrl,
     startScan,
 } from "@/lib/api";
@@ -145,6 +146,7 @@ export default function Home() {
                     summary: placeholderSummary(scanId, path),
                     results: [],
                     error: null,
+                    quarantined: [],
                 },
                 ...prev,
             ]);
@@ -164,24 +166,22 @@ export default function Home() {
             );
     };
 
+    // 실패하면 예외가 카드까지 올라가서 카드에 에러가 표시된다
+    const handleQuarantine = async (jobId: string, path: string) => {
+        await quarantineFile(jobId, path);
+        patchJob(jobId, (j) => ({
+            ...j,
+            quarantined: [...j.quarantined, path],
+        }));
+    };
+
     const vtAvailable =
         engines?.find((e) => e.name === "virustotal")?.available ?? false;
     const busy = starting || jobs.some(isRunning);
 
     return (
         <main className="mx-auto max-w-3xl px-6 py-12">
-            <header className="mb-8 flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        LocalTotal
-                    </h1>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                        파일 내용은 이 Mac 밖으로 나가지 않습니다.
-                        VirusTotal에는 SHA-256 해시만 조회합니다.
-                    </p>
-                </div>
-                <ThemeToggle />
-            </header>
+            <AppHeader />
 
             <section className="mb-6 flex items-center justify-between gap-4">
                 <EngineBadges engines={engines} error={engineError} />
@@ -212,6 +212,7 @@ export default function Home() {
                         key={job.summary.id}
                         job={job}
                         onCancel={handleCancel}
+                        onQuarantine={handleQuarantine}
                     />
                 ))}
             </section>
