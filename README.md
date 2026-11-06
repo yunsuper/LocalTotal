@@ -9,6 +9,15 @@ LocalTotal은 내 컴퓨터에서 **ClamAV**로 파일을 검사하고, **VirusT
 
 > ⚠️ LocalTotal은 실시간 백신을 대체하지 않습니다. 의심 파일을 수동으로 확인하는 보조 도구입니다.
 
+## 스크린샷
+
+| 검사 화면 | 검사 결과 |
+| :---: | :---: |
+| <img width="400" alt="검사 화면" src="https://github.com/user-attachments/assets/3df2cadd-cea8-44b4-afc7-d25f0b03a41a" /> | <img width="400" alt="검사 결과" src="https://github.com/user-attachments/assets/69fe3633-e78c-4ef5-a8af-91e408b2364d" /> |
+
+> 결과 예시: EICAR 테스트 파일을 ClamAV와 VirusTotal(60/62)이 모두 탐지해 **위험**으로 판정. 이 파일은 제외 목록에 "오탐으로 등록"해 두어 **오탐 의심** 배지가 붙고 격리 대상에서 빠진 상태입니다.
+
+
 ## 주요 특징
 
 - **파일은 외부로 전송하지 않음** — VirusTotal에는 해시만 보냅니다. 업로드 기능은 코드에 아예 없습니다.
