@@ -10,6 +10,11 @@ import { join } from 'node:path';
 import { concat, Observable, of, Subject } from 'rxjs';
 import { EnginesService } from '../engines/engines.service';
 import {
+  ExclusionMatcher,
+  ExclusionsService,
+} from '../exclusions/exclusions.service';
+import { SettingsService } from '../settings/settings.service';
+import {
   FileScanResult,
   ResolvedTarget,
   ScansService,
@@ -18,9 +23,9 @@ import {
 import { FinalVerdict } from './verdict';
 
 const CONCURRENCY = 4;
-const VT_ALL_THRESHOLD = 30; // M5에서 settings.json으로 이동
 const MAX_FILES = 20_000;
 const MAX_JOBS = 20; // 메모리에 보관할 최근 작업 수
+const MB = 1024 * 1024;
 
 export type JobStatus = 'collecting' | 'running' | 'done' | 'cancelled';
 export type VtMode = 'all' | 'detected-only' | 'off';
@@ -34,6 +39,8 @@ export interface ScanJobSummary {
   counts: Record<FinalVerdict, number>;
   vtMode: VtMode;
   skippedDirs: number;
+  excludedDirs: number; // 제외 목록(건너뛰기)으로 들어가지 않은 폴더
+  excludedFiles: number; // 제외 목록(건너뛰기)으로 목록에서 뺀 파일
   truncated: boolean;
   createdAt: string;
   finishedAt: string | null;
@@ -54,6 +61,7 @@ const emptyCounts = (): Record<FinalVerdict, number> => ({
   suspicious: 0,
   clean: 0,
   error: 0,
+  excluded: 0,
 });
 
 @Injectable()
@@ -64,11 +72,14 @@ export class ScanJobsService {
   constructor(
     private readonly scans: ScansService,
     private readonly engines: EnginesService,
+    private readonly exclusions: ExclusionsService,
+    private readonly settings: SettingsService,
   ) {}
 
+  /** useVirusTotal이 없으면 설정값을 따른다 */
   async start(
     inputPaths: string[],
-    useVirusTotal: boolean,
+    useVirusTotal?: boolean,
   ): Promise<{ scanId: string }> {
     // 잘못된 경로는 작업을 만들기 전에 바로 400/404로 돌려준다
     const targets = await Promise.all(
@@ -84,6 +95,8 @@ export class ScanJobsService {
       counts: emptyCounts(),
       vtMode: 'off',
       skippedDirs: 0,
+      excludedDirs: 0,
+      excludedFiles: 0,
       truncated: false,
       createdAt: new Date().toISOString(),
       finishedAt: null,
@@ -141,25 +154,34 @@ export class ScanJobsService {
   private async execute(
     job: ScanJob,
     targets: ResolvedTarget[],
-    useVirusTotal: boolean,
+    useVirusTotal?: boolean,
   ) {
     try {
-      const files = await this.collect(job, targets);
+      const settings = await this.settings.get();
+      const matcher = await this.exclusions.matcher(); // 작업 시작 시점의 규칙으로 고정
+
+      const files = await this.collect(job, targets, matcher);
       job.total = files.length;
 
       const vtAvailable =
-        useVirusTotal && (await this.engines.virustotal.isAvailable());
+        (useVirusTotal ?? settings.useVirusTotal) &&
+        (await this.engines.virustotal.isAvailable());
       job.vtMode = !vtAvailable
         ? 'off'
-        : files.length <= VT_ALL_THRESHOLD
+        : files.length <= settings.vtAllThreshold
           ? 'all'
           : 'detected-only';
-      const policy: VtPolicy =
+      const vtPolicy: VtPolicy =
         job.vtMode === 'all'
           ? 'always'
           : job.vtMode === 'detected-only'
             ? 'if-detected'
             : 'never';
+      const opts = {
+        vtPolicy,
+        matcher,
+        maxFileSize: settings.maxFileSizeMb * MB,
+      };
 
       job.status = 'running';
       this.emitProgress(job);
@@ -169,7 +191,7 @@ export class ScanJobsService {
         while (!job.cancelRequested) {
           const file = files.at(next++);
           if (file === undefined) return;
-          const result = await this.scans.scanResolvedFile(file, policy);
+          const result = await this.scans.scanResolvedFile(file, opts);
           job.results.push(result);
           job.scanned++;
           job.counts[result.verdict]++;
@@ -190,17 +212,28 @@ export class ScanJobsService {
     }
   }
 
-  /** 하위 폴더까지 파일 목록 수집. 심볼릭 링크는 따라가지 않는다. */
+  /**
+   * 하위 폴더까지 파일 목록 수집.
+   * - 심볼릭 링크는 따라가지 않는다.
+   * - 제외 목록 '건너뛰기' 폴더는 들어가지 않고, '건너뛰기' 파일은 목록에서 뺀다.
+   */
   private async collect(
     job: ScanJob,
     targets: ResolvedTarget[],
+    matcher: ExclusionMatcher,
   ): Promise<string[]> {
     const files = new Set<string>();
+    const isSkippedFile = (p: string) => matcher.byPath(p)?.mode === 'skip';
 
     for (const target of targets) {
       if (job.cancelRequested) break;
       if (target.kind === 'file') {
-        files.add(target.path);
+        if (isSkippedFile(target.path)) job.excludedFiles++;
+        else files.add(target.path);
+        continue;
+      }
+      if (matcher.skipsDir(target.path)) {
+        job.excludedDirs++;
         continue;
       }
 
@@ -218,8 +251,13 @@ export class ScanJobsService {
           if (entry.isSymbolicLink()) continue;
           const full = join(dir, entry.name);
           if (entry.isDirectory()) {
-            stack.push(full);
+            if (matcher.skipsDir(full)) job.excludedDirs++;
+            else stack.push(full);
           } else if (entry.isFile()) {
+            if (isSkippedFile(full)) {
+              job.excludedFiles++;
+              continue;
+            }
             files.add(full);
             if (files.size >= MAX_FILES) {
               job.truncated = true;
@@ -246,6 +284,8 @@ export class ScanJobsService {
       counts: { ...job.counts },
       vtMode: job.vtMode,
       skippedDirs: job.skippedDirs,
+      excludedDirs: job.excludedDirs,
+      excludedFiles: job.excludedFiles,
       truncated: job.truncated,
       createdAt: job.createdAt,
       finishedAt: job.finishedAt,

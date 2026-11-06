@@ -1,7 +1,8 @@
 import { EngineResult } from '../engines/scan-engine.interface';
 
+/** excluded: 제외 규칙(건너뛰기)으로 엔진 검사를 하지 않은 파일 */
 export type FinalVerdict =
-  'danger' | 'caution' | 'suspicious' | 'clean' | 'error';
+  'danger' | 'caution' | 'suspicious' | 'clean' | 'error' | 'excluded';
 
 const VT_DANGER_MIN = 5;
 const VT_CAUTION_MIN = 3;

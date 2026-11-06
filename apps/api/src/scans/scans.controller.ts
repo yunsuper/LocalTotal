@@ -25,6 +25,9 @@ interface StartScanBody {
   useVirusTotal?: unknown;
 }
 
+// 명시적인 true/false만 받고, 없으면 설정값을 따른다
+const optionalBool = (v: unknown) => (typeof v === 'boolean' ? v : undefined);
+
 @Controller('scans')
 export class ScansController {
   constructor(
@@ -42,8 +45,10 @@ export class ScansController {
         message: 'path가 필요합니다',
       });
     }
-    // 단일 파일은 기본으로 VT 조회 (명시적으로 false일 때만 끔)
-    return this.scans.scanFile(body.path.trim(), body.useVirusTotal !== false);
+    return this.scans.scanFile(
+      body.path.trim(),
+      optionalBool(body.useVirusTotal),
+    );
   }
 
   /** 파일·폴더 검사 작업 시작 → scanId */
@@ -61,7 +66,7 @@ export class ScansController {
         message: 'paths가 필요합니다',
       });
     }
-    return this.jobs.start(paths, body.useVirusTotal !== false);
+    return this.jobs.start(paths, optionalBool(body.useVirusTotal));
   }
 
   @Get(':id')

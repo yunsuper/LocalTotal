@@ -2,9 +2,11 @@ export type EngineName = "clamav" | "defender" | "virustotal";
 export type EngineVerdict =
     "clean" | "malicious" | "suspicious" | "unknown" | "error";
 export type FinalVerdict =
-    "danger" | "caution" | "suspicious" | "clean" | "error";
+    "danger" | "caution" | "suspicious" | "clean" | "error" | "excluded";
 export type JobStatus = "collecting" | "running" | "done" | "cancelled";
 export type VtMode = "all" | "detected-only" | "off";
+export type ExclusionKind = "folder" | "file" | "hash";
+export type ExclusionMode = "scan_only" | "skip";
 
 export interface EngineStatus {
     name: EngineName;
@@ -34,6 +36,13 @@ export interface EngineResult {
     durationMs: number;
 }
 
+export interface ExclusionRef {
+    id: string;
+    kind: ExclusionKind;
+    mode: ExclusionMode;
+    note?: string;
+}
+
 export interface FileScanResult {
     path: string;
     size: number;
@@ -42,6 +51,7 @@ export interface FileScanResult {
     results: EngineResult[];
     externalSent: "sha256" | "none";
     scannedAt: string;
+    excluded?: ExclusionRef;
 }
 
 export interface ScanJobSummary {
@@ -53,6 +63,8 @@ export interface ScanJobSummary {
     counts: Record<FinalVerdict, number>;
     vtMode: VtMode;
     skippedDirs: number;
+    excludedDirs: number;
+    excludedFiles: number;
     truncated: boolean;
     createdAt: string;
     finishedAt: string | null;
@@ -72,4 +84,19 @@ export interface QuarantineEntry {
     verdict: FinalVerdict;
     detections: { engine: string; threatName?: string }[];
     quarantinedAt: string;
+}
+
+export interface Exclusion {
+    id: string;
+    kind: ExclusionKind;
+    value: string;
+    mode: ExclusionMode;
+    note?: string;
+    createdAt: string;
+}
+
+export interface AppSettings {
+    useVirusTotal: boolean;
+    vtAllThreshold: number;
+    maxFileSizeMb: number;
 }

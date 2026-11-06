@@ -12,18 +12,34 @@ export interface JobView {
     results: FileScanResult[];
     error: string | null;
     quarantined: string[]; // 이 작업에서 격리한 파일 경로
+    falsePositives: string[]; // 이 작업에서 오탐으로 등록한 파일 경로
 }
 
 interface Props {
     job: JobView;
     onCancel: (id: string) => void;
     onQuarantine: (jobId: string, path: string) => Promise<void>;
+    onMarkFalsePositive: (
+        jobId: string,
+        result: FileScanResult,
+    ) => Promise<void>;
 }
 
 const baseName = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 
-export function ScanJobPanel({ job, onCancel, onQuarantine }: Props) {
-    const { summary, results, error, quarantined } = job;
+export function ScanJobPanel({
+    job,
+    onCancel,
+    onQuarantine,
+    onMarkFalsePositive,
+}: Props) {
+    const { summary, results, error } = job;
+    // 이전 상태(코드 수정 전 만든 패널)에 값이 없어도 안전하게
+    const quarantined = job.quarantined ?? [];
+    const falsePositives = job.falsePositives ?? [];
+    const excludedDirs = summary.excludedDirs ?? 0;
+    const excludedFiles = summary.excludedFiles ?? 0;
+
     const running =
         summary.status === "collecting" || summary.status === "running";
     const percent =
@@ -37,7 +53,10 @@ export function ScanJobPanel({ job, onCancel, onQuarantine }: Props) {
                 VERDICT_ORDER.indexOf(b.verdict) ||
             a.path.localeCompare(b.path),
     );
-    const flagged = sorted.filter((r) => r.verdict !== "clean");
+    const flagged = sorted.filter(
+        (r) => r.verdict !== "clean" && r.verdict !== "excluded",
+    );
+    const excluded = sorted.filter((r) => r.verdict === "excluded");
     const clean = sorted.filter((r) => r.verdict === "clean");
     const isSingleFile =
         summary.status === "done" &&
@@ -49,7 +68,9 @@ export function ScanJobPanel({ job, onCancel, onQuarantine }: Props) {
             key={r.path}
             result={r}
             quarantined={quarantined.includes(r.path)}
+            falsePositive={falsePositives.includes(r.path)}
             onQuarantine={() => onQuarantine(summary.id, r.path)}
+            onMarkFalsePositive={() => onMarkFalsePositive(summary.id, r)}
         />
     );
 
@@ -103,20 +124,31 @@ export function ScanJobPanel({ job, onCancel, onQuarantine }: Props) {
 
             {/* 판정별 개수 */}
             <div className="mt-3 flex flex-wrap gap-2">
-                {VERDICT_ORDER.filter((v) => summary.counts[v] > 0).map((v) => (
-                    <span
-                        key={v}
-                        className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${FINAL_VERDICT[v].className}`}
-                    >
-                        {FINAL_VERDICT[v].label} {summary.counts[v]}
-                    </span>
-                ))}
+                {VERDICT_ORDER.filter((v) => (summary.counts[v] ?? 0) > 0).map(
+                    (v) => (
+                        <span
+                            key={v}
+                            className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${FINAL_VERDICT[v].className}`}
+                        >
+                            {FINAL_VERDICT[v].label} {summary.counts[v]}
+                        </span>
+                    ),
+                )}
             </div>
 
             {/* 부가 정보 */}
             <ul className="mt-3 space-y-0.5 text-xs text-zinc-500">
                 {summary.status !== "collecting" && (
                     <li>{VT_MODE_LABEL[summary.vtMode]}</li>
+                )}
+                {(excludedDirs > 0 || excludedFiles > 0) && (
+                    <li>
+                        제외 목록(건너뛰기)에 따라
+                        {excludedDirs > 0 && ` 폴더 ${excludedDirs}개`}
+                        {excludedDirs > 0 && excludedFiles > 0 && ","}
+                        {excludedFiles > 0 && ` 파일 ${excludedFiles}개`}를
+                        검사하지 않았어요.
+                    </li>
                 )}
                 {summary.skippedDirs > 0 && (
                     <li>
@@ -142,6 +174,24 @@ export function ScanJobPanel({ job, onCancel, onQuarantine }: Props) {
                 ) : (
                     <>
                         {flagged.map(card)}
+                        {excluded.length > 0 && (
+                            <details className="rounded-lg border border-sky-200 px-4 py-3 dark:border-sky-500/30">
+                                <summary className="cursor-pointer text-sm">
+                                    제외된 파일 {excluded.length}개
+                                </summary>
+                                <ul className="mt-2 max-h-64 space-y-0.5 overflow-y-auto font-mono text-xs text-zinc-500">
+                                    {excluded.map((r) => (
+                                        <li
+                                            key={r.path}
+                                            className="truncate"
+                                            title={r.path}
+                                        >
+                                            {r.path}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </details>
+                        )}
                         {clean.length > 0 && (
                             <details className="rounded-lg border border-zinc-200 px-4 py-3 dark:border-zinc-800">
                                 <summary className="cursor-pointer text-sm">

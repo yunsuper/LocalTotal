@@ -11,6 +11,7 @@ import { chmod, copyFile, lstat, mkdir, unlink } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { appDataDir, quarantineDir } from '../common/app-paths';
 import { sha256File } from '../common/file-hash';
+import { ExclusionsService } from '../exclusions/exclusions.service';
 import { ScanJobsService } from '../scans/scan-jobs.service';
 import type { FinalVerdict } from '../scans/verdict';
 import { JsonFile } from '../store/json-file';
@@ -63,7 +64,10 @@ export class QuarantineService {
     () => ({ version: 1, entries: [] }),
   );
 
-  constructor(private readonly jobs: ScanJobsService) {}
+  constructor(
+    private readonly jobs: ScanJobsService,
+    private readonly exclusions: ExclusionsService,
+  ) {}
 
   async list(): Promise<QuarantineEntry[]> {
     const { entries } = await this.store.read();
@@ -73,9 +77,22 @@ export class QuarantineService {
   }
 
   /** 검사 결과에 있는 파일만 격리할 수 있다 (임의 경로는 받지 않음) */
-  quarantine(scanId: string, path: string): Promise<QuarantineEntry> {
+  async quarantine(scanId: string, path: string): Promise<QuarantineEntry> {
     const result = this.jobs.findResult(scanId, path);
-    // TODO(M5): 제외 목록 대상이면 409 EXCLUDED
+
+    // 검사 당시 제외 대상이었거나, 검사 후에 제외 목록에 추가된 파일은 격리 금지
+    const matcher = await this.exclusions.matcher();
+    if (
+      result.excluded ||
+      matcher.byPath(result.path) ||
+      matcher.byHash(result.sha256)
+    ) {
+      throw new ConflictException({
+        code: 'EXCLUDED',
+        message:
+          '제외 목록에 있는 파일은 격리할 수 없습니다 (설정에서 제외 규칙을 확인하세요)',
+      });
+    }
 
     return this.store.update(async (data) => {
       const original = result.path;

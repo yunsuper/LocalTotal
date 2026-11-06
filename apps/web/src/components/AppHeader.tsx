@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const NAV = [
     { href: "/", label: "검사" },
     { href: "/quarantine", label: "격리함" },
+    { href: "/settings", label: "설정" },
 ];
 
 export function AppHeader() {

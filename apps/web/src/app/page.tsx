@@ -6,14 +6,27 @@ import { EngineBadges } from "@/components/EngineBadges";
 import { ScanForm } from "@/components/ScanForm";
 import { ScanJobPanel, type JobView } from "@/components/ScanJobPanel";
 import {
+    addExclusion,
     cancelScan,
     getEngines,
     getScan,
+    getSettings,
     quarantineFile,
     scanEventsUrl,
     startScan,
 } from "@/lib/api";
-import type { EngineStatus, FileScanResult, ScanJobSummary } from "@/lib/types";
+import type {
+    AppSettings,
+    EngineStatus,
+    FileScanResult,
+    ScanJobSummary,
+} from "@/lib/types";
+
+const DEFAULT_SETTINGS: AppSettings = {
+    useVirusTotal: true,
+    vtAllThreshold: 30,
+    maxFileSizeMb: 200,
+};
 
 const isRunning = (job: JobView) =>
     job.summary.status === "collecting" || job.summary.status === "running";
@@ -25,9 +38,18 @@ function placeholderSummary(id: string, path: string): ScanJobSummary {
         paths: [path],
         total: 0,
         scanned: 0,
-        counts: { danger: 0, caution: 0, suspicious: 0, clean: 0, error: 0 },
+        counts: {
+            danger: 0,
+            caution: 0,
+            suspicious: 0,
+            clean: 0,
+            error: 0,
+            excluded: 0,
+        },
         vtMode: "off",
         skippedDirs: 0,
+        excludedDirs: 0,
+        excludedFiles: 0,
         truncated: false,
         createdAt: new Date().toISOString(),
         finishedAt: null,
@@ -37,6 +59,7 @@ function placeholderSummary(id: string, path: string): ScanJobSummary {
 export default function Home() {
     const [engines, setEngines] = useState<EngineStatus[] | null>(null);
     const [engineError, setEngineError] = useState<string | null>(null);
+    const [settings, setSettings] = useState<AppSettings | null>(null);
     const [starting, setStarting] = useState(false);
     const [scanError, setScanError] = useState<string | null>(null);
     const [jobs, setJobs] = useState<JobView[]>([]);
@@ -53,6 +76,21 @@ export default function Home() {
             })
             .catch((e: Error) => {
                 if (!cancelled) setEngineError(e.message);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // 설정값 (검사 폼 기본값). 실패하면 기본값 사용
+    useEffect(() => {
+        let cancelled = false;
+        getSettings()
+            .then((s) => {
+                if (!cancelled) setSettings(s);
+            })
+            .catch(() => {
+                if (!cancelled) setSettings(DEFAULT_SETTINGS);
             });
         return () => {
             cancelled = true;
@@ -147,6 +185,7 @@ export default function Home() {
                     results: [],
                     error: null,
                     quarantined: [],
+                    falsePositives: [],
                 },
                 ...prev,
             ]);
@@ -171,7 +210,25 @@ export default function Home() {
         await quarantineFile(jobId, path);
         patchJob(jobId, (j) => ({
             ...j,
-            quarantined: [...j.quarantined, path],
+            quarantined: [...(j.quarantined ?? []), path],
+        }));
+    };
+
+    // 오탐으로 등록: 이 파일의 해시를 '검사만' 규칙으로 제외 목록에 추가
+    const handleFalsePositive = async (
+        jobId: string,
+        result: FileScanResult,
+    ) => {
+        const name = result.path.split("/").pop() ?? result.path;
+        await addExclusion({
+            kind: "hash",
+            value: result.sha256,
+            mode: "scan_only",
+            note: `오탐 등록: ${name}`,
+        });
+        patchJob(jobId, (j) => ({
+            ...j,
+            falsePositives: [...(j.falsePositives ?? []), result.path],
         }));
     };
 
@@ -194,9 +251,13 @@ export default function Home() {
                 </button>
             </section>
 
+            {/* 설정을 불러온 뒤 기본값을 반영하도록 key로 다시 마운트 */}
             <ScanForm
+                key={settings ? "ready" : "loading"}
                 scanning={busy}
                 vtAvailable={vtAvailable}
+                defaultUseVirusTotal={settings?.useVirusTotal ?? true}
+                vtAllThreshold={settings?.vtAllThreshold ?? 30}
                 onScan={handleScan}
             />
 
@@ -213,6 +274,7 @@ export default function Home() {
                         job={job}
                         onCancel={handleCancel}
                         onQuarantine={handleQuarantine}
+                        onMarkFalsePositive={handleFalsePositive}
                     />
                 ))}
             </section>

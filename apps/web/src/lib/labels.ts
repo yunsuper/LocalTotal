@@ -1,6 +1,8 @@
 import type {
     EngineName,
     EngineVerdict,
+    ExclusionKind,
+    ExclusionMode,
     FinalVerdict,
     JobStatus,
     VtMode,
@@ -18,6 +20,7 @@ export const VERDICT_ORDER: FinalVerdict[] = [
     "caution",
     "suspicious",
     "error",
+    "excluded",
     "clean",
 ];
 
@@ -50,6 +53,11 @@ export const FINAL_VERDICT: Record<
         className:
             "border-zinc-300 bg-zinc-100 text-zinc-700 dark:border-zinc-500/40 dark:bg-zinc-500/15 dark:text-zinc-300",
     },
+    excluded: {
+        label: "제외됨",
+        className:
+            "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-500/40 dark:bg-sky-500/15 dark:text-sky-300",
+    },
 };
 
 export const ENGINE_VERDICT: Record<
@@ -78,6 +86,17 @@ export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
 
 export const VT_MODE_LABEL: Record<VtMode, string> = {
     all: "VirusTotal: 모든 파일 해시 조회",
-    "detected-only": "VirusTotal: ClamAV 탐지 파일만 조회 (30개 초과)",
+    "detected-only": "VirusTotal: ClamAV 탐지 파일만 조회 (기준 개수 초과)",
     off: "VirusTotal: 조회 안 함",
+};
+
+export const EXCLUSION_KIND_LABEL: Record<ExclusionKind, string> = {
+    folder: "폴더",
+    file: "파일",
+    hash: "해시",
+};
+
+export const EXCLUSION_MODE_LABEL: Record<ExclusionMode, string> = {
+    scan_only: "검사만 (격리 안 함)",
+    skip: "건너뛰기",
 };

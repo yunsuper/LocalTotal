@@ -10,12 +10,26 @@ import { isAbsolute } from 'node:path';
 import { sha256File } from '../common/file-hash';
 import { EnginesService } from '../engines/engines.service';
 import { EngineResult } from '../engines/scan-engine.interface';
+import {
+  Exclusion,
+  ExclusionMatcher,
+  ExclusionRef,
+  ExclusionsService,
+  toRef,
+} from '../exclusions/exclusions.service';
+import { SettingsService } from '../settings/settings.service';
 import { aggregateVerdict, FinalVerdict } from './verdict';
 
-const MAX_FILE_SIZE = 200 * 1024 * 1024; // clamd.conf StreamMaxLength와 맞춤
+const MB = 1024 * 1024;
 
 /** always: 항상 VT 조회 / if-detected: ClamAV 탐지 시에만 / never: 조회 안 함 */
 export type VtPolicy = 'always' | 'if-detected' | 'never';
+
+export interface ScanOptions {
+  vtPolicy: VtPolicy;
+  matcher: ExclusionMatcher;
+  maxFileSize: number; // bytes
+}
 
 export interface FileScanResult {
   path: string;
@@ -25,6 +39,7 @@ export interface FileScanResult {
   results: EngineResult[];
   externalSent: 'sha256' | 'none';
   scannedAt: string;
+  excluded?: ExclusionRef;
 }
 
 export interface ResolvedTarget {
@@ -34,12 +49,16 @@ export interface ResolvedTarget {
 
 @Injectable()
 export class ScansService {
-  constructor(private readonly engines: EnginesService) {}
+  constructor(
+    private readonly engines: EnginesService,
+    private readonly exclusions: ExclusionsService,
+    private readonly settings: SettingsService,
+  ) {}
 
-  /** 단일 파일 검사 (POST /scans/file) */
+  /** 단일 파일 검사 (POST /scans/file). useVirusTotal이 없으면 설정값을 따른다 */
   async scanFile(
     inputPath: string,
-    useVirusTotal: boolean,
+    useVirusTotal?: boolean,
   ): Promise<FileScanResult> {
     const target = await this.resolveTarget(inputPath);
     if (target.kind !== 'file') {
@@ -48,8 +67,15 @@ export class ScansService {
         message: '파일 경로가 아닙니다 (폴더는 폴더 검사를 사용하세요)',
       });
     }
-    const vtOn = useVirusTotal && (await this.engines.virustotal.isAvailable());
-    return this.scanResolvedFile(target.path, vtOn ? 'always' : 'never');
+    const settings = await this.settings.get();
+    const vtOn =
+      (useVirusTotal ?? settings.useVirusTotal) &&
+      (await this.engines.virustotal.isAvailable());
+    return this.scanResolvedFile(target.path, {
+      vtPolicy: vtOn ? 'always' : 'never',
+      matcher: await this.exclusions.matcher(),
+      maxFileSize: settings.maxFileSizeMb * MB,
+    });
   }
 
   /** 사용자가 입력한 경로를 실제 경로로 바꾸고 읽을 수 있는지 확인 */
@@ -93,8 +119,17 @@ export class ScansService {
   /** 이미 확인된 절대 경로 1개를 검사. 파일 오류는 예외 대신 '오류' 결과로 돌려준다. */
   async scanResolvedFile(
     absPath: string,
-    vtPolicy: VtPolicy,
+    opts: ScanOptions,
   ): Promise<FileScanResult> {
+    const pathRule = opts.matcher.byPath(absPath);
+    if (pathRule?.mode === 'skip') {
+      const size = await stat(absPath).then(
+        (s) => s.size,
+        () => 0,
+      );
+      return excludedResult(absPath, size, '', pathRule);
+    }
+
     let size = 0;
     let sha256 = '';
     try {
@@ -119,20 +154,24 @@ export class ScansService {
       };
     }
 
+    const rule = pathRule ?? opts.matcher.byHash(sha256);
+    if (rule?.mode === 'skip')
+      return excludedResult(absPath, size, sha256, rule);
+
     const clamTask: Promise<EngineResult> =
-      size > MAX_FILE_SIZE
+      size > opts.maxFileSize
         ? Promise.resolve({
             engine: 'clamav',
             verdict: 'error',
             detail: {
-              message: `크기 초과 (${Math.round(size / 1024 / 1024)}MB > 200MB)`,
+              message: `크기 초과 (${Math.round(size / MB)}MB > ${Math.round(opts.maxFileSize / MB)}MB)`,
             },
             durationMs: 0,
           })
         : this.engines.clamav.scanFile(absPath);
 
     let results: EngineResult[];
-    if (vtPolicy === 'always') {
+    if (opts.vtPolicy === 'always') {
       results = await Promise.all([
         clamTask,
         this.engines.virustotal.lookupHash(sha256),
@@ -140,7 +179,7 @@ export class ScansService {
     } else {
       const clam = await clamTask;
       results =
-        vtPolicy === 'if-detected' && clam.verdict === 'malicious'
+        opts.vtPolicy === 'if-detected' && clam.verdict === 'malicious'
           ? [clam, await this.engines.virustotal.lookupHash(sha256)]
           : [clam];
     }
@@ -155,8 +194,27 @@ export class ScansService {
         ? 'sha256'
         : 'none',
       scannedAt: new Date().toISOString(),
+      ...(rule ? { excluded: toRef(rule) } : {}),
     };
   }
+}
+
+function excludedResult(
+  path: string,
+  size: number,
+  sha256: string,
+  rule: Exclusion,
+): FileScanResult {
+  return {
+    path,
+    size,
+    sha256,
+    verdict: 'excluded',
+    results: [],
+    externalSent: 'none',
+    scannedAt: new Date().toISOString(),
+    excluded: toRef(rule),
+  };
 }
 
 function describeFsError(err: unknown): string {

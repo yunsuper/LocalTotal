@@ -1,5 +1,9 @@
 import type {
+    AppSettings,
     EngineStatus,
+    Exclusion,
+    ExclusionKind,
+    ExclusionMode,
     FileScanResult,
     QuarantineEntry,
     ScanJobDetail,
@@ -93,4 +97,34 @@ export const restoreQuarantine = (id: string) =>
 export const deleteQuarantine = (id: string) =>
     request<{ removed: true }>(`/quarantine/${encodeURIComponent(id)}`, {
         method: "DELETE",
+    });
+
+/* ---------- 제외 목록 ---------- */
+
+export const listExclusions = () => request<Exclusion[]>("/exclusions");
+
+export const addExclusion = (input: {
+    kind: ExclusionKind;
+    value: string;
+    mode: ExclusionMode;
+    note?: string;
+}) =>
+    request<Exclusion>("/exclusions", {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
+
+export const deleteExclusion = (id: string) =>
+    request<{ removed: true }>(`/exclusions/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+    });
+
+/* ---------- 설정 ---------- */
+
+export const getSettings = () => request<AppSettings>("/settings");
+
+export const updateSettings = (patch: Partial<AppSettings>) =>
+    request<AppSettings>("/settings", {
+        method: "PUT",
+        body: JSON.stringify(patch),
     });
