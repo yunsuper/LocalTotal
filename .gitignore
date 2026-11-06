@@ -1,8 +1,12 @@
 node_modules/
 dist/
 .next/
+*.tsbuildinfo
+
 .env
 .env.*
+!.env.example
+
 *.db
 *.db-journal
 .DS_Store
