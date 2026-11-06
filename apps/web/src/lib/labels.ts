@@ -1,10 +1,25 @@
-import type { EngineName, EngineVerdict, FinalVerdict } from "./types";
+import type {
+    EngineName,
+    EngineVerdict,
+    FinalVerdict,
+    JobStatus,
+    VtMode,
+} from "./types";
 
 export const ENGINE_LABEL: Record<EngineName, string> = {
     clamav: "ClamAV",
     virustotal: "VirusTotal",
     defender: "Defender",
 };
+
+/** 결과 정렬 순서 (위험한 것부터) */
+export const VERDICT_ORDER: FinalVerdict[] = [
+    "danger",
+    "caution",
+    "suspicious",
+    "error",
+    "clean",
+];
 
 export const FINAL_VERDICT: Record<
     FinalVerdict,
@@ -52,4 +67,17 @@ export const ENGINE_VERDICT: Record<
     },
     unknown: { label: "미등록", className: "text-zinc-500 dark:text-zinc-400" },
     error: { label: "오류", className: "text-zinc-500 dark:text-zinc-400" },
+};
+
+export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+    collecting: "파일 목록 수집 중",
+    running: "검사 중",
+    done: "완료",
+    cancelled: "취소됨",
+};
+
+export const VT_MODE_LABEL: Record<VtMode, string> = {
+    all: "VirusTotal: 모든 파일 해시 조회",
+    "detected-only": "VirusTotal: ClamAV 탐지 파일만 조회 (30개 초과)",
+    off: "VirusTotal: 조회 안 함",
 };

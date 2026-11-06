@@ -33,6 +33,11 @@ export function EngineBadges({ engines, error }: Props) {
                     <span className="text-zinc-500">
                         {e.available ? "사용 가능" : "사용 불가"}
                     </span>
+                    {e.available && e.usage && (
+                        <span className="text-xs text-zinc-500">
+                            · 오늘 {e.usage.today}/{e.usage.limit}
+                        </span>
+                    )}
                 </li>
             ))}
         </ul>

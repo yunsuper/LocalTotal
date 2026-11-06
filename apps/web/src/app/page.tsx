@@ -1,19 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EngineBadges } from "@/components/EngineBadges";
 import { ScanForm } from "@/components/ScanForm";
-import { ScanResultCard } from "@/components/ScanResultCard";
+import { ScanJobPanel, type JobView } from "@/components/ScanJobPanel";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { getEngines, scanFile } from "@/lib/api";
-import type { EngineStatus, FileScanResult } from "@/lib/types";
+import {
+    cancelScan,
+    getEngines,
+    getScan,
+    scanEventsUrl,
+    startScan,
+} from "@/lib/api";
+import type { EngineStatus, FileScanResult, ScanJobSummary } from "@/lib/types";
+
+const isRunning = (job: JobView) =>
+    job.summary.status === "collecting" || job.summary.status === "running";
+
+function placeholderSummary(id: string, path: string): ScanJobSummary {
+    return {
+        id,
+        status: "collecting",
+        paths: [path],
+        total: 0,
+        scanned: 0,
+        counts: { danger: 0, caution: 0, suspicious: 0, clean: 0, error: 0 },
+        vtMode: "off",
+        skippedDirs: 0,
+        truncated: false,
+        createdAt: new Date().toISOString(),
+        finishedAt: null,
+    };
+}
 
 export default function Home() {
     const [engines, setEngines] = useState<EngineStatus[] | null>(null);
     const [engineError, setEngineError] = useState<string | null>(null);
-    const [scanning, setScanning] = useState(false);
+    const [starting, setStarting] = useState(false);
     const [scanError, setScanError] = useState<string | null>(null);
-    const [results, setResults] = useState<FileScanResult[]>([]);
+    const [jobs, setJobs] = useState<JobView[]>([]);
+    const sources = useRef(new Map<string, EventSource>());
 
     // 첫 진입 시 엔진 상태 조회: 상태 변경은 Promise 콜백 안에서만
     useEffect(() => {
@@ -32,7 +58,16 @@ export default function Home() {
         };
     }, []);
 
-    // 새로고침 버튼용
+    // 화면을 벗어나면 열린 SSE 연결 정리
+    useEffect(() => {
+        const map = sources.current;
+        return () => {
+            map.forEach((es) => es.close());
+            map.clear();
+        };
+    }, []);
+
+    // 새로고침 버튼용 (검사 후 VT 사용량 갱신에도 사용)
     const refreshEngines = useCallback(async () => {
         try {
             setEngines(await getEngines());
@@ -42,21 +77,96 @@ export default function Home() {
         }
     }, []);
 
+    const patchJob = useCallback(
+        (id: string, fn: (job: JobView) => JobView) => {
+            setJobs((prev) =>
+                prev.map((j) => (j.summary.id === id ? fn(j) : j)),
+            );
+        },
+        [],
+    );
+
+    const watchJob = useCallback(
+        (id: string) => {
+            const es = new EventSource(scanEventsUrl(id));
+            sources.current.set(id, es);
+
+            es.addEventListener("progress", (e) => {
+                const summary = JSON.parse(
+                    (e as MessageEvent<string>).data,
+                ) as ScanJobSummary;
+                patchJob(id, (j) => ({ ...j, summary }));
+            });
+
+            es.addEventListener("result", (e) => {
+                const result = JSON.parse(
+                    (e as MessageEvent<string>).data,
+                ) as FileScanResult;
+                patchJob(id, (j) => ({
+                    ...j,
+                    results: [...j.results, result],
+                }));
+            });
+
+            es.addEventListener("done", () => {
+                es.close();
+                sources.current.delete(id);
+                // 최종 결과는 서버 기준으로 다시 받아 정확히 맞춘다
+                getScan(id)
+                    .then(({ results, ...summary }) =>
+                        patchJob(id, (j) => ({ ...j, summary, results })),
+                    )
+                    .catch((err: Error) =>
+                        patchJob(id, (j) => ({ ...j, error: err.message })),
+                    );
+                void refreshEngines();
+            });
+
+            es.onerror = () => {
+                if (es.readyState === EventSource.CLOSED) {
+                    sources.current.delete(id);
+                    patchJob(id, (j) => ({
+                        ...j,
+                        error: "진행 상황 연결이 끊겼어요 (API 서버 확인)",
+                    }));
+                }
+            };
+        },
+        [patchJob, refreshEngines],
+    );
+
     const handleScan = async (path: string, useVirusTotal: boolean) => {
-        setScanning(true);
+        setStarting(true);
         setScanError(null);
         try {
-            const result = await scanFile(path, useVirusTotal);
-            setResults((prev) => [result, ...prev]);
+            const { scanId } = await startScan([path], useVirusTotal);
+            setJobs((prev) => [
+                {
+                    summary: placeholderSummary(scanId, path),
+                    results: [],
+                    error: null,
+                },
+                ...prev,
+            ]);
+            watchJob(scanId);
         } catch (e) {
             setScanError((e as Error).message);
         } finally {
-            setScanning(false);
+            setStarting(false);
         }
+    };
+
+    const handleCancel = (id: string) => {
+        cancelScan(id)
+            .then((summary) => patchJob(id, (j) => ({ ...j, summary })))
+            .catch((err: Error) =>
+                patchJob(id, (j) => ({ ...j, error: err.message })),
+            );
     };
 
     const vtAvailable =
         engines?.find((e) => e.name === "virustotal")?.available ?? false;
+    const busy = starting || jobs.some(isRunning);
 
     return (
         <main className="mx-auto max-w-3xl px-6 py-12">
@@ -85,7 +195,7 @@ export default function Home() {
             </section>
 
             <ScanForm
-                scanning={scanning}
+                scanning={busy}
                 vtAvailable={vtAvailable}
                 onScan={handleScan}
             />
@@ -96,11 +206,12 @@ export default function Home() {
                 </p>
             )}
 
-            <section className="mt-8 space-y-4">
-                {results.map((r) => (
-                    <ScanResultCard
-                        key={`${r.sha256}-${r.scannedAt}`}
-                        result={r}
+            <section className="mt-8 space-y-6">
+                {jobs.map((job) => (
+                    <ScanJobPanel
+                        key={job.summary.id}
+                        job={job}
+                        onCancel={handleCancel}
                     />
                 ))}
             </section>

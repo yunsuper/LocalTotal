@@ -25,14 +25,14 @@ export function ScanForm({ scanning, vtAvailable, onScan }: Props) {
             className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/50"
         >
             <label htmlFor="path" className="mb-2 block text-sm font-medium">
-                검사할 파일 경로
+                검사할 파일 또는 폴더 경로
             </label>
             <div className="flex gap-2">
                 <input
                     id="path"
                     value={path}
                     onChange={(e) => setPath(e.target.value)}
-                    placeholder="/Users/cherrymac/Downloads/some-mod.zip"
+                    placeholder="/Users/cherrymac/Downloads/some-mod"
                     spellCheck={false}
                     className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950"
                 />
@@ -45,11 +45,11 @@ export function ScanForm({ scanning, vtAvailable, onScan }: Props) {
                 </button>
             </div>
             <p className="mt-2 text-xs text-zinc-500">
-                Finder에서 파일 선택 후{" "}
+                Finder에서 파일이나 폴더를 선택한 뒤{" "}
                 <kbd className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
                     Option + Command + C
                 </kbd>
-                로 경로를 복사해 붙여넣으세요.
+                로 경로를 복사해 붙여넣으세요. 폴더는 하위 폴더까지 검사합니다.
             </p>
 
             <label className="mt-4 flex items-center gap-2 text-sm">
@@ -67,10 +67,11 @@ export function ScanForm({ scanning, vtAvailable, onScan }: Props) {
                         : "(API 키 없음)"}
                 </span>
             </label>
-
-            {scanning && useVirusTotal && vtAvailable && (
-                <p className="mt-3 text-xs text-zinc-500">
-                    VirusTotal 요청 간격 제한으로 최대 15초 정도 걸릴 수 있어요.
+            {vtAvailable && (
+                <p className="mt-1 pl-6 text-xs text-zinc-500">
+                    파일 30개 이하는 모두 조회하고, 그보다 많으면 ClamAV가
+                    탐지한 파일만 조회합니다. 새 파일은 조회 간격 제한으로 1개당
+                    약 15초가 걸려요.
                 </p>
             )}
         </form>
