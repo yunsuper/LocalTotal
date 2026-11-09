@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { EngineBadges } from "@/components/EngineBadges";
 import { ScanForm } from "@/components/ScanForm";
 import { ScanJobPanel, type JobView } from "@/components/ScanJobPanel";
+import { fileName } from "@/lib/paths";
 import {
     addExclusion,
     cancelScan,
@@ -235,7 +236,7 @@ export default function Home() {
         jobId: string,
         result: FileScanResult,
     ) => {
-        const name = result.path.split("/").pop() ?? result.path;
+        const name = fileName(result.path);
         await addExclusion({
             kind: "hash",
             value: result.sha256,

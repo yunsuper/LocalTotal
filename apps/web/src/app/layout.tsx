@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { PlatformProvider } from "@/components/PlatformProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,7 +22,10 @@ export default function RootLayout({
                 <Script id="lt-theme" strategy="beforeInteractive">
                     {themeScript}
                 </Script>
-                {children}
+                {/* Next.js 서버 = API·검사 대상과 같은 PC이므로 서버의 OS로 화면 문구를 고른다 */}
+                <PlatformProvider platform={process.platform}>
+                    {children}
+                </PlatformProvider>
             </body>
         </html>
     );

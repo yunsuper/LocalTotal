@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatBytes, formatTime } from "@/lib/format";
+import { fileName } from "@/lib/paths";
 import {
     ENGINE_LABEL,
     ENGINE_VERDICT,
@@ -60,7 +61,7 @@ export function ScanResultCard({
     const [error, setError] = useState<string | null>(null);
 
     const verdict = FINAL_VERDICT[result.verdict];
-    const fileName = result.path.split("/").pop() ?? result.path;
+    const name = fileName(result.path);
     const flagged = FLAGGED.has(result.verdict);
     const rule = result.excluded;
     const isFalsePositive = falsePositive || Boolean(rule);
@@ -98,7 +99,7 @@ export function ScanResultCard({
         <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/50">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <h2 className="truncate font-semibold">{fileName}</h2>
+                    <h2 className="truncate font-semibold">{name}</h2>
                     <p
                         className="truncate font-mono text-xs text-zinc-500"
                         title={result.path}

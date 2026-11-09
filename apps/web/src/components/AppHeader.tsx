@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useOsTexts } from "./PlatformProvider";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV = [
@@ -12,6 +13,7 @@ const NAV = [
 
 export function AppHeader() {
     const pathname = usePathname();
+    const os = useOsTexts();
 
     return (
         <header className="mb-8">
@@ -21,7 +23,7 @@ export function AppHeader() {
                         LocalTotal
                     </h1>
                     <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                        파일 내용은 이 Mac 밖으로 나가지 않습니다.
+                        파일 내용은 {os.machine} 밖으로 나가지 않습니다.
                         VirusTotal에는 SHA-256 해시만 조회합니다.
                     </p>
                 </div>

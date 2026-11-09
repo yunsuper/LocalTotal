@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { useOsTexts } from "@/components/PlatformProvider";
 import {
     addExclusion,
     deleteExclusion,
@@ -48,6 +49,7 @@ export default function SettingsPage() {
 
     const [kind, setKind] = useState<ExclusionKind>("folder");
     const [value, setValue] = useState("");
+    const os = useOsTexts();
     const [mode, setMode] = useState<ExclusionMode>("scan_only");
     const [note, setNote] = useState("");
     const [adding, setAdding] = useState(false);
@@ -269,7 +271,7 @@ export default function SettingsPage() {
                         placeholder={
                             kind === "hash"
                                 ? "SHA-256 64자리"
-                                : "/Users/cherrymac/Games/MO2"
+                                : os.folderPlaceholder
                         }
                         spellCheck={false}
                         className={`${inputClass} w-full font-mono`}

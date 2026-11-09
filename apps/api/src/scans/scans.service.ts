@@ -8,6 +8,8 @@ import { constants } from 'node:fs';
 import { access, realpath, stat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { sha256File } from '../common/file-hash';
+import { describeFsError, noPermissionMessage } from '../common/fs-errors';
+import { normalizeInputPath } from '../common/input-path';
 import { EnginesService } from '../engines/engines.service';
 import { EngineResult } from '../engines/scan-engine.interface';
 import {
@@ -79,7 +81,8 @@ export class ScansService {
   }
 
   /** 사용자가 입력한 경로를 실제 경로로 바꾸고 읽을 수 있는지 확인 */
-  async resolveTarget(inputPath: string): Promise<ResolvedTarget> {
+  async resolveTarget(rawPath: string): Promise<ResolvedTarget> {
+    const inputPath = normalizeInputPath(rawPath);
     if (!isAbsolute(inputPath)) {
       throw new BadRequestException({
         code: 'INVALID_PATH',
@@ -109,7 +112,7 @@ export class ScansService {
       if (code === 'EACCES' || code === 'EPERM') {
         throw new ForbiddenException({
           code: 'NO_PERMISSION',
-          message: '읽기 권한이 없습니다 (VS Code 전체 디스크 접근 권한 확인)',
+          message: noPermissionMessage(),
         });
       }
       throw err;
@@ -215,11 +218,4 @@ function excludedResult(
     scannedAt: new Date().toISOString(),
     excluded: toRef(rule),
   };
-}
-
-function describeFsError(err: unknown): string {
-  const code = (err as NodeJS.ErrnoException).code;
-  if (code === 'ENOENT') return '파일이 사라짐';
-  if (code === 'EACCES' || code === 'EPERM') return '읽기 권한 없음';
-  return (err as Error).message;
 }

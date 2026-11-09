@@ -5,6 +5,7 @@ import {
     VERDICT_ORDER,
     VT_MODE_LABEL,
 } from "@/lib/labels";
+import { lastSegment } from "@/lib/paths";
 import type { FileScanResult, ScanJobSummary } from "@/lib/types";
 
 export interface JobView {
@@ -25,7 +26,6 @@ interface Props {
     ) => Promise<void>;
 }
 
-const baseName = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 
 export function ScanJobPanel({
     job,
@@ -80,7 +80,7 @@ export function ScanJobPanel({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <h2 className="truncate font-semibold">
-                        {summary.paths.map(baseName).join(", ")}
+                        {summary.paths.map(lastSegment).join(", ")}
                     </h2>
                     <p
                         className="truncate font-mono text-xs text-zinc-500"

@@ -11,6 +11,7 @@ LocalTotal: 파일 내용을 PC 밖으로 보내지 않는 로컬 수동 악성�
    - macOS용 기존 파일·경로·명령(`config/clamav/*.conf`, `npm run dev`, `npm run dev:app`)의 위치와 동작을 바꾸지 않는다. Windows용은 옆에 추가한다.
    - 루트 `package.json`의 `dev`, `dev:clam`은 **실행 구조까지 그대로 둔다**(다른 진입점으로 감싸거나 OS 분기를 넣지 않는다). Windows는 별도 스크립트 `dev:win`, `dev:clam:win`으로 추가해서 맥을 다시 확인할 필요가 없게 한다.
    - 공통 코드를 고치면 macOS에서 결과가 이전과 같은지 단위 테스트로 보장한다(Defender 결과가 없을 때 판정이 기존과 동일해야 함).
+   - 방법: OS 차이는 `platform` 인자를 받는 순수 함수로 분리하고(`common/fs-errors.ts`, `common/input-path.ts`, web `lib/paths.ts`, `lib/platform.ts`), spec에 **M7 이전 구현을 그대로 복사**해 `'darwin'`에서 결과가 같은지 비교한다. 이 복사본은 고치지 않는다.
 2. **파일 내용은 외부로 보내지 않는다.** VirusTotal에는 SHA-256 해시만 보낸다(`GET /api/v3/files/{sha256}`). 업로드 코드는 만들지 않는다. Defender도 샘플 자동 제출이 일어나지 않게 해야 한다(아래 Windows 메모 참고).
 3. **모든 서버는 `127.0.0.1`에만 바인딩한다.** API 4000, 웹 3000, clamd 3310. `0.0.0.0`·`localhost` 와일드카드 바인딩 금지. `local-only.middleware.ts`(Host·Origin 검사, 변경 요청에 `X-LocalTotal: 1`)를 약화시키지 않는다.
 4. **기능을 바꾸면 문서도 같이 업데이트한다.** `README.md`와 `docs/`(설계도 .md의 해당 섹션·로드맵 상태, 작업일지 `docs/작업일지.md`에 날짜별 기록). docs/는 git에 올라가지 않는다.
@@ -41,7 +42,8 @@ npm install                 # 루트에서 한 번
 npm run dev                 # clamd + API + 웹 (macOS)
 npm run dev:win             # clamd + API + 웹 (Windows, M7에서 추가)
 npm run dev:app             # API + 웹만 (공통)
-npm test -w apps/api        # Jest 단위 테스트 (verdict, exclusion-matcher)
+npm test -w apps/api        # Jest 단위 테스트 (verdict, exclusion-matcher, fs-errors, input-path)
+npm test -w apps/web        # node --test (paths, platform). 새 의존성 없이 Node 24 타입 제거 실행
 npm run lint -w apps/api    # oxlint
 ```
 
@@ -82,6 +84,8 @@ Defender
 - 출력 형식과 종료 코드는 추측하지 말고 실제 측정값(작업일지에 기록)을 기준으로 파싱한다.
 - 실시간 보호가 켜져 있으면 EICAR 같은 파일은 만들자마자 Defender가 지울 수 있다. 테스트 시 고려한다.
 - 샘플 제출: `Get-MpPreference`의 `SubmitSamplesConsent`가 2(보내지 않음)가 아니면 파일이 Microsoft로 갈 수 있다. 원칙 2에 따라 UI/README에서 안내하고 상태를 표시한다.
-- Windows 특이점: 파일 잠금(`EBUSY`/`EPERM`), 경로 구분자 `\`(웹에서 `split("/")` 금지), 탐색기 "경로로 복사"의 따옴표, `chmod`는 읽기 전용 속성만 바뀜, `rename` 대상이 잠겨 있으면 실패할 수 있음.
+- Windows 특이점: 파일 잠금(`EBUSY`/`EPERM`), 경로 구분자 `\`(웹에서 `split("/")` 금지 → `lib/paths.ts`의 `fileName`/`lastSegment`), 탐색기 "경로로 복사"의 따옴표(API `normalizeInputPath`가 처리), `chmod`는 읽기 전용 속성만 바뀜, `rename` 대상이 잠겨 있으면 실패할 수 있음.
+- 화면의 OS별 문구는 `lib/platform.ts`의 `osTexts`에 모으고 컴포넌트는 `useOsTexts()`로 읽는다(Next 서버의 `process.platform`을 layout에서 전달). 문구를 하드코딩하지 않는다.
+- PowerShell 5.1의 `Set-Content -Encoding utf8`은 BOM을 붙인다. JSON 등을 고칠 때 쓰지 않는다.
 - Defender가 차단한 파일을 열면 Node는 `code: 'UNKNOWN'`, `errno: -4094`를 낸다(Win32 오류 225 "file contains a virus"). 실시간 보호는 파일 생성 직후가 아니라 나중에 다른 프로세스가 열 때 반응할 수 있다.
 - PowerShell 5.1 기본 셸이고 npm 스크립트는 `cmd.exe`로 실행된다. `sh -c` 스크립트는 Windows에서 동작하지 않는다.

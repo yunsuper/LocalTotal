@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useOsTexts } from "./PlatformProvider";
 
 interface Props {
     scanning: boolean;
@@ -19,6 +20,7 @@ export function ScanForm({
 }: Props) {
     const [path, setPath] = useState("");
     const [useVirusTotal, setUseVirusTotal] = useState(defaultUseVirusTotal);
+    const os = useOsTexts();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -40,7 +42,7 @@ export function ScanForm({
                     id="path"
                     value={path}
                     onChange={(e) => setPath(e.target.value)}
-                    placeholder="/Users/cherrymac/Downloads/some-mod"
+                    placeholder={os.scanPlaceholder}
                     spellCheck={false}
                     className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950"
                 />
@@ -53,9 +55,9 @@ export function ScanForm({
                 </button>
             </div>
             <p className="mt-2 text-xs text-zinc-500">
-                Finder에서 파일이나 폴더를 선택한 뒤{" "}
+                {os.copyApp}에서 파일이나 폴더를 선택한 뒤{" "}
                 <kbd className="rounded bg-zinc-200 px-1 dark:bg-zinc-800">
-                    Option + Command + C
+                    {os.copyKeys}
                 </kbd>
                 로 경로를 복사해 붙여넣으세요. 폴더는 하위 폴더까지 검사합니다.
             </p>

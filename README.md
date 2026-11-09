@@ -131,6 +131,10 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 
 데이터는 `%APPDATA%\LocalTotal\`(격리·제외·설정)에 저장됩니다.
 
+**경로 입력**: 파일 탐색기에서 파일이나 폴더를 선택하고 `Ctrl + Shift + C`(경로로 복사)로 복사해 붙여넣습니다. 앞뒤에 붙는 큰따옴표는 자동으로 지웁니다.
+
+**"파일을 열 수 없음 (Windows 보안 등의 이유일 수 있음)"**: Microsoft Defender 같은 보안 프로그램이 파일 열기를 막았을 때 주로 나옵니다(다른 원인일 수도 있음). 이 파일은 LocalTotal이 읽을 수 없어 격리도 할 수 없습니다(`409 FILE_UNREADABLE`). Windows 보안 → 바이러스 및 위협 방지 → 보호 기록에서 처리 결과를 확인하세요.
+
 ## 사용법
 
 ### 검사
@@ -201,11 +205,13 @@ printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H
 판정 규칙과 제외 목록 매칭은 Jest 단위 테스트로 검증합니다. 실제 엔진이나 악성코드 없이, 가짜 엔진 결과로 로직만 확인합니다.
 
 ```bash
-npm test -w apps/api
+npm test -w apps/api   # Jest
+npm test -w apps/web   # Node 내장 테스트 (node --test)
 ```
 
 - `verdict.spec.ts` — 위험·주의·의심 경계값(VT 2/3/4/5개), ClamAV 우선, 오류 판정
 - `exclusion-matcher.spec.ts` — `/mods`가 `/mods-old`에 걸리지 않는지, 중첩 폴더 우선순위, 대소문자 무시, 해시 매칭
+- `fs-errors.spec.ts`, `input-path.spec.ts` (API), `paths.test.mts`, `platform.test.mts` (웹) — Windows용으로 나눈 처리(파일 열기 오류, 따옴표 경로, `\` 경로 파일명, 화면 문구)가 macOS에서는 이전 코드와 똑같이 동작하는지 이전 구현과 직접 비교. OS는 인자로 넣으므로 어느 OS에서 돌려도 macOS·Windows 경우를 모두 검사
 
 ## 데이터 저장 위치
 
@@ -255,7 +261,7 @@ LocalTotal/
 ## 로드맵
 
 - [x] macOS: ClamAV + VirusTotal 해시 조회, 파일·폴더 검사, 격리·복원, 제외 목록, 설정
-- [ ] Windows: ClamAV 실행(`npm run dev:win`) ✅, Microsoft Defender(`MpCmdRun`) 연동, Windows 화면 문구·경로 처리
+- [ ] Windows: ClamAV 실행(`npm run dev:win`) ✅, Windows 화면 문구·경로 처리 ✅, Microsoft Defender(`MpCmdRun`) 연동
 
 ## 라이선스
 
