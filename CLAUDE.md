@@ -88,7 +88,9 @@ Defender
   - `-DisableRemediation`이면 파일이 남고 Defender 기록에도 안 남는다. 1개 25~70ms, 동시 4개 문제없음.
   - Defender 제외 목록 조회·추가는 관리자 권한이 필요하다.
 - 실시간 보호가 켜져 있으면 EICAR 같은 파일은 만들자마자 Defender가 지울 수 있다. 테스트 시 고려한다.
-- 샘플 제출: `Get-MpPreference`의 `SubmitSamplesConsent`가 2(보내지 않음)가 아니면 파일이 Microsoft로 갈 수 있다. 원칙 2에 따라 UI/README에서 안내하고 상태를 표시한다.
+- 샘플 제출(결정됨): `SubmitSamplesConsent` 2 → 사용, 0 → 사용 + 안내(info), 1·3·확인 불가 → **Defender 끔** + 설정 방법 안내(warn). 읽는 순서: 정책 레지스트리 → `HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet` → `Get-MpPreference`. 1분 캐시. 구현은 `engines/defender-output.ts`의 `defenderPolicy`.
+- 판정(결정됨): Defender 탐지 → 위험. Defender 오류·깨끗함은 판정을 바꾸지 않는다(ClamAV 깨끗함 + Defender 오류 = 깨끗함, ClamAV 오류 + Defender 깨끗함 = 기존처럼 오류). Defender 결과가 없으면 M7 이전과 동일. "탐지 파일만" VT 모드는 ClamAV·Defender 중 하나라도 탐지하면 조회.
+- Defender는 Windows에서만 엔진 목록에 들어간다(`activeEngines`). 크기 제한(`maxFileSizeMb`)은 ClamAV에만 적용하고 Defender는 크기와 관계없이 검사한다.
 - Windows 특이점: 파일 잠금(`EBUSY`/`EPERM`), 경로 구분자 `\`(웹에서 `split("/")` 금지 → `lib/paths.ts`의 `fileName`/`lastSegment`), 탐색기 "경로로 복사"의 따옴표(API `normalizeInputPath`가 처리), `chmod`는 읽기 전용 속성만 바뀜, `rename` 대상이 잠겨 있으면 실패할 수 있음.
 - 화면의 OS별 문구는 `lib/platform.ts`의 `osTexts`에 모으고 컴포넌트는 `useOsTexts()`로 읽는다(Next 서버의 `process.platform`을 layout에서 전달). 문구를 하드코딩하지 않는다.
 - PowerShell 5.1의 `Set-Content -Encoding utf8`은 BOM을 붙인다. JSON 등을 고칠 때 쓰지 않는다.

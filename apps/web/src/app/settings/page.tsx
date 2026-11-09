@@ -187,8 +187,8 @@ export default function SettingsPage() {
                                 className={`${inputClass} w-32`}
                             />
                             <span className="mt-1 block text-xs text-zinc-500">
-                                이 개수 이하면 모든 파일을 조회하고, 넘으면
-                                ClamAV가 탐지한 파일만 조회해요. (0~500)
+                                이 개수 이하면 모든 파일을 조회하고, 넘으면{" "}
+                                {os.localEngines}가 탐지한 파일만 조회해요. (0~500)
                             </span>
                         </label>
 

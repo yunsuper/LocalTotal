@@ -10,6 +10,10 @@ export interface OsTexts {
     copyKeys: string;
     scanPlaceholder: string;
     folderPlaceholder: string;
+    /** 로컬 검사 엔진 ("○○가 탐지한 파일만 조회") */
+    localEngines: string;
+    /** 작업 패널의 VT 모드 표시 (탐지 파일만) */
+    vtDetectedOnlyLabel: string;
 }
 
 export const MAC_TEXTS: OsTexts = {
@@ -18,6 +22,8 @@ export const MAC_TEXTS: OsTexts = {
     copyKeys: "Option + Command + C",
     scanPlaceholder: "/Users/cherrymac/Downloads/some-mod",
     folderPlaceholder: "/Users/cherrymac/Games/MO2",
+    localEngines: "ClamAV",
+    vtDetectedOnlyLabel: "VirusTotal: ClamAV 탐지 파일만 조회 (기준 개수 초과)",
 };
 
 export const WINDOWS_TEXTS: OsTexts = {
@@ -26,6 +32,9 @@ export const WINDOWS_TEXTS: OsTexts = {
     copyKeys: "Ctrl + Shift + C",
     scanPlaceholder: "C:\\Users\\me\\Downloads\\some-mod",
     folderPlaceholder: "D:\\Games\\MO2",
+    localEngines: "ClamAV·Defender",
+    vtDetectedOnlyLabel:
+        "VirusTotal: ClamAV·Defender 탐지 파일만 조회 (기준 개수 초과)",
 };
 
 export function osTexts(platform: string | undefined): OsTexts {

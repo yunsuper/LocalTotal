@@ -79,8 +79,8 @@ export function ScanForm({
             </label>
             {vtAvailable && (
                 <p className="mt-1 pl-6 text-xs text-zinc-500">
-                    파일 {vtAllThreshold}개 이하는 모두 조회하고, 그보다 많으면
-                    ClamAV가 탐지한 파일만 조회합니다. 새 파일은 조회 간격
+                    파일 {vtAllThreshold}개 이하는 모두 조회하고, 그보다 많으면{" "}
+                    {os.localEngines}가 탐지한 파일만 조회합니다. 새 파일은 조회 간격
                     제한으로 1개당 약 15초가 걸려요.
                 </p>
             )}

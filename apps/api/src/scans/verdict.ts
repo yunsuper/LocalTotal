@@ -14,18 +14,23 @@ interface VtStats {
 
 /**
  * 판정 규칙 (위에서부터 먼저 맞는 것)
- * - 위험: ClamAV 탐지, 또는 VT malicious 5개 이상
+ * - 위험: ClamAV 탐지, Defender 탐지(Windows), 또는 VT malicious 5개 이상
  * - 주의: VT malicious 3~4개
  * - 의심: VT malicious 1~2개, 또는 VT suspicious 1개 이상
  * - 오류: ClamAV가 검사하지 못했고 VT 근거도 없음
  * - 깨끗함: 그 외 (VT 미등록·미조회 포함)
+ *
+ * Defender 결과는 탐지일 때만 판정에 쓴다. Defender 오류·깨끗함은 판정을 바꾸지 않으므로
+ * Defender 결과가 없으면(macOS) 판정은 M7 이전과 같다 (verdict.spec.ts).
  */
 export function aggregateVerdict(results: EngineResult[]): FinalVerdict {
   const clam = results.find((r) => r.engine === 'clamav');
+  const defender = results.find((r) => r.engine === 'defender');
   const vt = results.find((r) => r.engine === 'virustotal');
   const vtStats = vt?.detail?.stats as VtStats | undefined;
 
   if (clam?.verdict === 'malicious') return 'danger';
+  if (defender?.verdict === 'malicious') return 'danger';
   if (vtStats) {
     if (vtStats.malicious >= VT_DANGER_MIN) return 'danger';
     if (vtStats.malicious >= VT_CAUTION_MIN) return 'caution';

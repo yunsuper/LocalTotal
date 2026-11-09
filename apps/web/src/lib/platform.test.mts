@@ -9,7 +9,18 @@ const LEGACY = {
     copyKeys: "Option + Command + C",
     scanPlaceholder: "/Users/cherrymac/Downloads/some-mod",
     folderPlaceholder: "/Users/cherrymac/Games/MO2", // 설정 화면 제외 목록 입력
+    localEngines: "ClamAV", // ScanForm·설정: "ClamAV가 탐지한 파일만 조회"
+    vtDetectedOnlyLabel: "VirusTotal: ClamAV 탐지 파일만 조회 (기준 개수 초과)", // labels.ts VT_MODE_LABEL
 };
+
+describe("VT_MODE_LABEL과 맥 문구가 같다", () => {
+    it("detected-only", async () => {
+        const src = await import("node:fs").then((fs) =>
+            fs.readFileSync(new URL("./labels.ts", import.meta.url), "utf8"),
+        );
+        assert.ok(src.includes(`"detected-only": "${LEGACY.vtDetectedOnlyLabel}"`));
+    });
+});
 
 describe("macOS 문구: M7 이전과 같다", () => {
     for (const platform of ["darwin", "linux", undefined, ""]) {

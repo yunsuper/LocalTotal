@@ -29,6 +29,8 @@ export type VtPolicy = 'always' | 'if-detected' | 'never';
 
 export interface ScanOptions {
   vtPolicy: VtPolicy;
+  /** Defender로도 검사 (Windows에서 사용 가능할 때만 true). 없으면 M7 이전과 같다 */
+  useDefender?: boolean;
   matcher: ExclusionMatcher;
   maxFileSize: number; // bytes
 }
@@ -75,6 +77,7 @@ export class ScansService {
       (await this.engines.virustotal.isAvailable());
     return this.scanResolvedFile(target.path, {
       vtPolicy: vtOn ? 'always' : 'never',
+      useDefender: await this.engines.defender.isAvailable(),
       matcher: await this.exclusions.matcher(),
       maxFileSize: settings.maxFileSizeMb * MB,
     });
@@ -173,18 +176,24 @@ export class ScansService {
           })
         : this.engines.clamav.scanFile(absPath);
 
+    // 로컬 엔진: ClamAV (+ Windows에서 Defender). Defender는 크기 제한 없이 검사한다
+    const localTasks: Promise<EngineResult>[] = opts.useDefender
+      ? [clamTask, this.engines.defender.scanFile(absPath)]
+      : [clamTask];
+
     let results: EngineResult[];
     if (opts.vtPolicy === 'always') {
       results = await Promise.all([
-        clamTask,
+        ...localTasks,
         this.engines.virustotal.lookupHash(sha256),
       ]);
     } else {
-      const clam = await clamTask;
+      const local = await Promise.all(localTasks);
       results =
-        opts.vtPolicy === 'if-detected' && clam.verdict === 'malicious'
-          ? [clam, await this.engines.virustotal.lookupHash(sha256)]
-          : [clam];
+        opts.vtPolicy === 'if-detected' &&
+        local.some((r) => r.verdict === 'malicious')
+          ? [...local, await this.engines.virustotal.lookupHash(sha256)]
+          : local;
     }
 
     return {

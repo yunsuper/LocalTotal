@@ -13,6 +13,8 @@ export interface EngineStatus {
     available: boolean;
     version: string | null;
     usage?: { today: number; limit: number };
+    /** 엔진 안내 (예: Windows Defender 샘플 제출 설정) */
+    notice?: { level: "info" | "warn"; message: string };
 }
 
 export interface VtStats {

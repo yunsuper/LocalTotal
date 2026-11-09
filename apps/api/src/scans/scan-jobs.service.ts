@@ -179,6 +179,7 @@ export class ScanJobsService {
             : 'never';
       const opts = {
         vtPolicy,
+        useDefender: await this.engines.defender.isAvailable(), // macOS는 항상 false
         matcher,
         maxFileSize: settings.maxFileSizeMb * MB,
       };

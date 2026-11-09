@@ -1,3 +1,4 @@
+import { useOsTexts } from "@/components/PlatformProvider";
 import { ScanResultCard } from "@/components/ScanResultCard";
 import {
     JOB_STATUS_LABEL,
@@ -26,7 +27,6 @@ interface Props {
     ) => Promise<void>;
 }
 
-
 export function ScanJobPanel({
     job,
     onCancel,
@@ -34,6 +34,7 @@ export function ScanJobPanel({
     onMarkFalsePositive,
 }: Props) {
     const { summary, results, error } = job;
+    const os = useOsTexts();
     // 이전 상태(코드 수정 전 만든 패널)에 값이 없어도 안전하게
     const quarantined = job.quarantined ?? [];
     const falsePositives = job.falsePositives ?? [];
@@ -139,7 +140,11 @@ export function ScanJobPanel({
             {/* 부가 정보 */}
             <ul className="mt-3 space-y-0.5 text-xs text-zinc-500">
                 {summary.status !== "collecting" && (
-                    <li>{VT_MODE_LABEL[summary.vtMode]}</li>
+                    <li>
+                        {summary.vtMode === "detected-only"
+                            ? os.vtDetectedOnlyLabel
+                            : VT_MODE_LABEL[summary.vtMode]}
+                    </li>
                 )}
                 {(excludedDirs > 0 || excludedFiles > 0) && (
                     <li>

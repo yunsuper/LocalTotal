@@ -106,7 +106,7 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 
 ## Windows에서 실행 (개발 중)
 
-> Windows 지원(Microsoft Defender 연동 포함)은 개발 중입니다. 현재는 ClamAV + VirusTotal 검사, 격리·복원이 동작하는 것을 확인했습니다. 아래 명령은 **PowerShell** 기준입니다.
+> Windows 지원은 개발 중입니다. 현재 ClamAV + Microsoft Defender + VirusTotal 검사, 격리·복원이 동작하는 것을 확인했습니다. 아래 명령은 **PowerShell** 기준입니다.
 
 1. ClamAV 설치 (1.5 이상)
 
@@ -131,6 +131,23 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 
 데이터는 `%APPDATA%\LocalTotal\`(격리·제외·설정)에 저장됩니다.
 
+**Microsoft Defender**: Windows에 기본으로 있는 Defender로도 검사합니다(`MpCmdRun.exe -Scan -ScanType 3 -File <경로> -DisableRemediation`). 추가 설치는 없고, Defender가 파일을 지우거나 격리하지 않으며 판정만 받아 옵니다. 파일 내용을 외부로 보내지 않는 원칙에 따라 **샘플 제출 설정**에 맞춰 동작합니다.
+
+| Defender 샘플 제출 (`SubmitSamplesConsent`) | LocalTotal |
+| --- | --- |
+| 2 보내지 않음 | Defender 사용 |
+| 0 보내기 전에 확인 (Windows 기본, 자동 샘플 제출 꺼짐) | Defender 사용 + 안내 표시. Windows가 파일 전송을 물으면 "보내지 않음"을 선택 |
+| 1·3 자동 전송 (자동 샘플 제출 켜짐) | **Defender 검사를 끔** + 설정 방법 안내 |
+
+현재 값 확인과 "보내지 않음" 설정(관리자 PowerShell):
+
+```powershell
+Get-MpPreference | Select-Object SubmitSamplesConsent
+Set-MpPreference -SubmitSamplesConsent 2
+```
+
+또는 Windows 보안 → 바이러스 및 위협 방지 → 설정 관리 → "자동 샘플 제출"을 끕니다(값 0). 바꾸면 1분 안에 반영됩니다.
+
 **경로 입력**: 파일 탐색기에서 파일이나 폴더를 선택하고 `Ctrl + Shift + C`(경로로 복사)로 복사해 붙여넣습니다. 앞뒤에 붙는 큰따옴표는 자동으로 지웁니다.
 
 **"파일을 열 수 없음 (Windows 보안 등의 이유일 수 있음)"**: Microsoft Defender 같은 보안 프로그램이 파일 열기를 막았을 때 주로 나옵니다(다른 원인일 수도 있음). 이 파일은 LocalTotal이 읽을 수 없어 격리도 할 수 없습니다(`409 FILE_UNREADABLE`). Windows 보안 → 바이러스 및 위협 방지 → 보호 기록에서 처리 결과를 확인하세요.
@@ -151,12 +168,14 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 
 | 판정 | 조건 |
 | --- | --- |
-| 🔴 위험 | ClamAV 탐지, 또는 VirusTotal malicious 5개 이상 |
+| 🔴 위험 | ClamAV 탐지, Defender 탐지(Windows), 또는 VirusTotal malicious 5개 이상 |
 | 🟠 주의 | VirusTotal malicious 3~4개 |
 | 🟡 의심 | VirusTotal malicious 1~2개, 또는 suspicious 1개 이상 |
 | ⚪ 오류 | 크기 초과, 읽기 권한 없음, ClamAV 오류 |
 | 🟢 깨끗함 | 위 조건 해당 없음 (VirusTotal 미등록 포함) |
 | 🔵 제외됨 | 제외 목록의 "건너뛰기" 규칙에 해당 |
+
+Windows의 Defender 결과는 탐지했을 때만 판정에 반영됩니다. Defender가 오류를 내도 ClamAV가 깨끗하면 깨끗함으로 판정하고, 오류 내용은 결과 카드에 표시됩니다.
 
 ### VirusTotal 조회 방식
 
@@ -165,7 +184,7 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 | 상황 | 동작 |
 | --- | --- |
 | 검사 대상 파일이 **30개 이하** | 모든 파일 해시 조회 (30개면 약 8분) |
-| 30개 **초과** | ClamAV가 탐지한 파일만 조회 |
+| 30개 **초과** | ClamAV가 탐지한 파일만 조회 (Windows는 ClamAV·Defender 중 하나라도 탐지한 파일) |
 | VT 꺼짐 또는 키 없음 | 조회 안 함 (외부 통신 없음) |
 
 - 기준 개수(기본 30)는 설정 화면에서 바꿀 수 있습니다.
@@ -232,6 +251,7 @@ npm test -w apps/web   # Node 내장 테스트 (node --test)
 - 상태를 바꾸는 요청에는 `X-LocalTotal: 1` 헤더 필수 (다른 사이트의 요청 위조 차단)
 - `Host`·`Origin` 검사로 DNS 리바인딩 및 외부 출처 요청 차단
 - VirusTotal에는 해시만 전송, 파일 업로드 코드 없음
+- Windows Defender는 샘플 자동 제출이 켜져 있으면(`SubmitSamplesConsent` 1·3) 사용하지 않음
 - 검사 파일은 읽기만 하고 실행하지 않음
 
 ## 프로젝트 구조
@@ -261,7 +281,7 @@ LocalTotal/
 ## 로드맵
 
 - [x] macOS: ClamAV + VirusTotal 해시 조회, 파일·폴더 검사, 격리·복원, 제외 목록, 설정
-- [ ] Windows: ClamAV 실행(`npm run dev:win`) ✅, Windows 화면 문구·경로 처리 ✅, Microsoft Defender(`MpCmdRun`) 연동
+- [ ] Windows: ClamAV 실행(`npm run dev:win`) ✅, Windows 화면 문구·경로 처리 ✅, Microsoft Defender(`MpCmdRun`) 연동 ✅, Defender 제외 폴더 동작 확인
 
 ## 라이선스
 
