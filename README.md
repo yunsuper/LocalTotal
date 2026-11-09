@@ -104,6 +104,33 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 | `npm run dev` | clamd + API + 웹 전체 실행 (기본) |
 | `npm run dev:app` | clamd를 따로 띄웠을 때 API + 웹만 실행 |
 
+## Windows에서 실행 (개발 중)
+
+> Windows 지원(Microsoft Defender 연동 포함)은 개발 중입니다. 현재는 ClamAV + VirusTotal 검사, 격리·복원이 동작하는 것을 확인했습니다. 아래 명령은 **PowerShell** 기준입니다.
+
+1. ClamAV 설치 (1.5 이상)
+
+   ```powershell
+   winget install --id Cisco.ClamAV -e
+   ```
+
+   `C:\Program Files\ClamAV\`에 설치됩니다. PATH 등록이나 설정 파일 작성은 필요 없습니다. 다른 위치에 설치했다면 `apps/api/.env`에 `CLAMAV_DIR=<설치 폴더>`를 적습니다.
+
+2. 레포 받기·패키지 설치·환경 변수는 macOS와 같습니다 (`cp` 대신 `Copy-Item apps/api/.env.example apps/api/.env`).
+
+3. 실행
+
+   ```powershell
+   npm run dev:win
+   ```
+
+   - 시그니처 DB는 `%LOCALAPPDATA%\LocalTotal\clamav\db\`에 받습니다(첫 실행 시 약 110MB). 관리자 권한은 필요 없습니다.
+   - 설정은 레포의 `config/clamav/windows/`를 사용하고, ClamAV 설치 폴더의 설정은 건드리지 않습니다.
+   - `Ctrl + C`로 clamd·API·웹이 함께 종료됩니다. 이어서 `Terminate batch job (Y/N)?`(한국어 환경은 `일괄 작업을 끝내시겠습니까`)가 나오면 `Y`를 누르면 됩니다(npm의 Windows 기본 동작).
+   - clamd는 실행하는 동안에만 동작합니다. `clamd --install-service`로 서비스 등록은 하지 마세요. 이미 등록해서 3310 포트를 쓰고 있다면 관리자 터미널에서 `clamd.exe --uninstall-service`로 해제합니다.
+
+데이터는 `%APPDATA%\LocalTotal\`(격리·제외·설정)에 저장됩니다.
+
 ## 사용법
 
 ### 검사
@@ -206,7 +233,8 @@ npm test -w apps/api
 ```text
 LocalTotal/
 ├─ package.json          # npm workspaces, 실행 스크립트
-├─ config/clamav/        # LocalTotal 전용 clamd·freshclam 설정
+├─ config/clamav/        # LocalTotal 전용 clamd·freshclam 설정 (macOS), windows/ (Windows)
+├─ scripts/              # dev-clam-win.mjs — Windows용 clamd 실행 (npm run dev:clam:win)
 └─ apps/
    ├─ api/               # NestJS — 엔진, 검사, 격리, 제외, 설정 (127.0.0.1:4000)
    └─ web/               # Next.js + Tailwind — 검사·격리함·설정 화면 (127.0.0.1:3000)
@@ -227,7 +255,7 @@ LocalTotal/
 ## 로드맵
 
 - [x] macOS: ClamAV + VirusTotal 해시 조회, 파일·폴더 검사, 격리·복원, 제외 목록, 설정
-- [ ] Windows: Microsoft Defender(`MpCmdRun`) 연동
+- [ ] Windows: ClamAV 실행(`npm run dev:win`) ✅, Microsoft Defender(`MpCmdRun`) 연동, Windows 화면 문구·경로 처리
 
 ## 라이선스
 
