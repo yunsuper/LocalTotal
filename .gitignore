@@ -11,3 +11,7 @@ dist/
 *.db-journal
 .DS_Store
 docs/
+# 도구가 만드는 로컬 파일
+.vscode/
+apps/web/AGENTS.md
+apps/api/AGENTS.md

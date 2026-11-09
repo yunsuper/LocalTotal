@@ -48,6 +48,14 @@ npm run lint -w apps/api    # oxlint
 - Node 24.9 이상 필요(NestJS 12가 ESM). jest는 루트 node_modules에 설치되어 test 스크립트가 `../../node_modules/jest/bin/jest.js`를 직접 부른다.
 - `isolatedModules` 때문에 데코레이터 시그니처에 쓰는 타입은 `import type`으로 가져온다.
 
+## Git 규칙
+
+- Windows(M7) 작업은 `feat/windows` 브랜치에서 한다. main에 직접 커밋하지 않는다.
+- **단계가 끝날 때마다 커밋한다.** 메시지는 `M7 n단계: 요약` 형식에 변경 내용과 확인 결과를 적는다. 단계와 관계없는 변경(예: `package-lock.json` 동기화)은 따로 커밋한다.
+- 커밋에는 그 단계의 파일만 명시적으로 넣는다(`git add -A` 금지). `.vscode/`, `.env`, `docs/`는 커밋하지 않는다.
+- 공통 코드를 고치는 단계는 커밋 전에 `npm test -w apps/api`가 통과해야 한다.
+- push는 사용자가 요청할 때만 한다.
+
 ## 코드 규칙
 
 - 에러 응답은 `{ code, message }` 형태(예: `EXCLUDED`, `FILE_CHANGED`, `FILE_BUSY`, `NO_PERMISSION`). 사용자에게 보이는 메시지는 한국어.
