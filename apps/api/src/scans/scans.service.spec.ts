@@ -155,5 +155,22 @@ describe('ScansService.scanResolvedFile', () => {
       });
       expect(r.verdict).toBe('danger');
     });
+
+    it('크기 초과(ClamAV 오류) + Defender 깨끗함 = 깨끗함, ClamAV 오류는 결과에 남는다', async () => {
+      const f = fakeEngines('clean', 'clean');
+      const r = await service(f.engines).scanResolvedFile(file, {
+        vtPolicy: 'never',
+        matcher,
+        maxFileSize: 1,
+        useDefender: true,
+      });
+      expect(r.verdict).toBe('clean');
+      expect(r.results[0].verdict).toBe('error');
+      expect(String(r.results[0].detail?.message)).toContain('크기 초과');
+    });
+
+    it('ClamAV 오류 + Defender 오류 = 오류', async () => {
+      expect((await scan('error', 'error', 'never')).verdict).toBe('error');
+    });
   });
 });

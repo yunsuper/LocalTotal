@@ -89,7 +89,9 @@ Defender
   - Defender 제외 목록 조회·추가는 관리자 권한이 필요하다.
 - 실시간 보호가 켜져 있으면 EICAR 같은 파일은 만들자마자 Defender가 지울 수 있다. 테스트 시 고려한다.
 - 샘플 제출(결정됨): `SubmitSamplesConsent` 2 → 사용, 0 → 사용 + 안내(info), 1·3·확인 불가 → **Defender 끔** + 설정 방법 안내(warn). 읽는 순서: 정책 레지스트리 → `HKLM\SOFTWARE\Microsoft\Windows Defender\Spynet` → `Get-MpPreference`. 1분 캐시. 구현은 `engines/defender-output.ts`의 `defenderPolicy`.
-- 판정(결정됨): Defender 탐지 → 위험. Defender 오류·깨끗함은 판정을 바꾸지 않는다(ClamAV 깨끗함 + Defender 오류 = 깨끗함, ClamAV 오류 + Defender 깨끗함 = 기존처럼 오류). Defender 결과가 없으면 M7 이전과 동일. "탐지 파일만" VT 모드는 ClamAV·Defender 중 하나라도 탐지하면 조회.
+- 판정(결정됨): ClamAV·Defender 중 하나라도 탐지 → 위험. **로컬 엔진(ClamAV·Defender) 중 하나라도 정상 검사했고 아무도 탐지하지 않았으면 깨끗함, 둘 다 실패하면 오류**(VT 근거가 있으면 VT 판정이 먼저). Defender 결과가 없으면(맥) 로컬 엔진은 ClamAV뿐이라 M7 이전과 동일.
+- 엔진별 오류는 판정과 별개로 결과 카드에 보인다. 로컬 엔진 오류가 있는 "깨끗함"은 접힌 목록이 아니라 카드로 표시한다(web `lib/results.ts`의 `hasLocalEngineError`, VT 오류는 제외해 맥 화면 유지).
+- Defender 제외 폴더: `MpCmdRun -Scan -ScanType 3 -File`은 제외 목록을 **적용하지 않고** 검사한다(4.18.26100.4 실측, 출력·로그가 일반 폴더와 동일). 실시간 보호만 제외를 따른다. 동작이 바뀌어도 출력으로는 구분할 수 없으므로 Defender 업데이트 후 작업일지의 재현 절차로 다시 확인한다. "탐지 파일만" VT 모드는 ClamAV·Defender 중 하나라도 탐지하면 조회.
 - Defender는 Windows에서만 엔진 목록에 들어간다(`activeEngines`). 크기 제한(`maxFileSizeMb`)은 ClamAV에만 적용하고 Defender는 크기와 관계없이 검사한다.
 - Windows 특이점: 파일 잠금(`EBUSY`/`EPERM`), 경로 구분자 `\`(웹에서 `split("/")` 금지 → `lib/paths.ts`의 `fileName`/`lastSegment`), 탐색기 "경로로 복사"의 따옴표(API `normalizeInputPath`가 처리), `chmod`는 읽기 전용 속성만 바뀜, `rename` 대상이 잠겨 있으면 실패할 수 있음.
 - 화면의 OS별 문구는 `lib/platform.ts`의 `osTexts`에 모으고 컴포넌트는 `useOsTexts()`로 읽는다(Next 서버의 `process.platform`을 layout에서 전달). 문구를 하드코딩하지 않는다.

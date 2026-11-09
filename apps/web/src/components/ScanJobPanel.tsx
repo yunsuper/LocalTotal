@@ -7,6 +7,7 @@ import {
     VT_MODE_LABEL,
 } from "@/lib/labels";
 import { lastSegment } from "@/lib/paths";
+import { hasLocalEngineError } from "@/lib/results";
 import type { FileScanResult, ScanJobSummary } from "@/lib/types";
 
 export interface JobView {
@@ -58,7 +59,13 @@ export function ScanJobPanel({
         (r) => r.verdict !== "clean" && r.verdict !== "excluded",
     );
     const excluded = sorted.filter((r) => r.verdict === "excluded");
-    const clean = sorted.filter((r) => r.verdict === "clean");
+    // 깨끗함이지만 로컬 엔진 하나가 오류를 낸 파일(Windows)은 카드로 보여 엔진별 오류를 숨기지 않는다
+    const cleanWithError = sorted.filter(
+        (r) => r.verdict === "clean" && hasLocalEngineError(r),
+    );
+    const clean = sorted.filter(
+        (r) => r.verdict === "clean" && !hasLocalEngineError(r),
+    );
     const isSingleFile =
         summary.status === "done" &&
         summary.total === 1 &&
@@ -179,6 +186,7 @@ export function ScanJobPanel({
                 ) : (
                     <>
                         {flagged.map(card)}
+                        {cleanWithError.map(card)}
                         {excluded.length > 0 && (
                             <details className="rounded-lg border border-sky-200 px-4 py-3 dark:border-sky-500/30">
                                 <summary className="cursor-pointer text-sm">

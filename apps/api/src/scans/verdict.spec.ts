@@ -197,15 +197,48 @@ describe('aggregateVerdict — Defender (Windows)', () => {
     );
   });
 
-  it('Defender 깨끗함·오류는 ClamAV·VT 조합의 판정을 바꾸지 않는다', () => {
+  it('Defender 오류는 ClamAV·VT 조합의 판정을 바꾸지 않는다', () => {
     for (const c of combos) {
-      for (const d of [defender('clean'), defender('error')]) {
-        expect(aggregateVerdict([...c, d])).toBe(legacyAggregateVerdict(c));
-      }
+      expect(aggregateVerdict([...c, defender('error')])).toBe(
+        legacyAggregateVerdict(c),
+      );
     }
   });
 
-  it('ClamAV 오류 + Defender 깨끗함은 기존처럼 오류', () => {
-    expect(aggregateVerdict([clam('error'), defender('clean')])).toBe('error');
+  it('Defender 깨끗함은 "로컬 엔진이 하나도 검사하지 못한 오류"만 깨끗함으로 바꾼다', () => {
+    for (const c of combos) {
+      const legacy = legacyAggregateVerdict(c);
+      expect(aggregateVerdict([...c, defender('clean')])).toBe(
+        legacy === 'error' ? 'clean' : legacy,
+      );
+    }
+  });
+
+  it('ClamAV 오류 + Defender 깨끗함 = 깨끗함 (하나라도 정상 검사, 탐지 없음)', () => {
+    expect(aggregateVerdict([clam('error'), defender('clean')])).toBe('clean');
+    expect(
+      aggregateVerdict([clam('error'), defender('clean'), vtUnknown()]),
+    ).toBe('clean');
+  });
+
+  it('ClamAV 오류 + Defender 오류 = 오류 (둘 다 실패)', () => {
+    expect(aggregateVerdict([clam('error'), defender('error')])).toBe('error');
+    expect(aggregateVerdict([clam('error'), defender('error'), vt(0)])).toBe(
+      'error',
+    );
+  });
+
+  it('둘 다 실패해도 VT 근거가 있으면 VT 판정', () => {
+    expect(aggregateVerdict([clam('error'), defender('error'), vt(5)])).toBe(
+      'danger',
+    );
+    expect(aggregateVerdict([clam('error'), defender('error'), vt(1)])).toBe(
+      'suspicious',
+    );
+  });
+
+  it('ClamAV 결과가 없어도 Defender가 깨끗하면 깨끗함', () => {
+    expect(aggregateVerdict([defender('clean')])).toBe('clean');
+    expect(aggregateVerdict([defender('error')])).toBe('error');
   });
 });

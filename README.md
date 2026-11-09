@@ -171,11 +171,13 @@ Set-MpPreference -SubmitSamplesConsent 2
 | 🔴 위험 | ClamAV 탐지, Defender 탐지(Windows), 또는 VirusTotal malicious 5개 이상 |
 | 🟠 주의 | VirusTotal malicious 3~4개 |
 | 🟡 의심 | VirusTotal malicious 1~2개, 또는 suspicious 1개 이상 |
-| ⚪ 오류 | 크기 초과, 읽기 권한 없음, ClamAV 오류 |
+| ⚪ 오류 | 로컬 엔진이 하나도 검사하지 못함 (크기 초과, 읽기 권한 없음, ClamAV 오류 등. Windows는 ClamAV·Defender 둘 다 실패) |
 | 🟢 깨끗함 | 위 조건 해당 없음 (VirusTotal 미등록 포함) |
 | 🔵 제외됨 | 제외 목록의 "건너뛰기" 규칙에 해당 |
 
-Windows의 Defender 결과는 탐지했을 때만 판정에 반영됩니다. Defender가 오류를 내도 ClamAV가 깨끗하면 깨끗함으로 판정하고, 오류 내용은 결과 카드에 표시됩니다.
+Windows에서는 ClamAV와 Defender 중 **하나라도 정상 검사했고 아무도 탐지하지 않았으면 깨끗함**, 둘 다 실패하면 오류입니다. 예를 들어 ClamAV가 크기 제한으로 건너뛰었어도 Defender가 검사해 깨끗하면 깨끗함입니다. 이렇게 한쪽 엔진에 오류가 있는 파일은 "깨끗한 파일" 목록에 접지 않고 결과 카드로 보여 주므로 엔진별 오류를 확인할 수 있습니다.
+
+Defender 제외 목록에 넣은 폴더(예: ModOrganizer, 게임 폴더)도 LocalTotal의 Defender 검사는 건너뛰지 않습니다(`MpCmdRun` 수동 검사는 제외 목록을 적용하지 않는 것을 확인함, Defender 4.18.26100.4). 실시간 보호만 제외됩니다.
 
 ### VirusTotal 조회 방식
 
