@@ -81,7 +81,12 @@ ClamAV (Windows)
 
 Defender
 - Defender 엔진은 `MpCmdRun.exe -Scan -ScanType 3 -File <경로> -DisableRemediation`를 `child_process.execFile`(셸 없이, 인자 배열)로 호출한다. 경로를 셸 문자열로 이어 붙이지 않는다.
-- 출력 형식과 종료 코드는 추측하지 말고 실제 측정값(작업일지에 기록)을 기준으로 파싱한다.
+- 출력 형식과 종료 코드는 추측하지 말고 실제 측정값(작업일지에 기록)을 기준으로 파싱한다. 측정 결과(4.18.26100.4):
+  - 종료 코드 0 = 위협 없음, **2 = 위협 발견 또는 오류**(없는 파일도 2) → 종료 코드만으로 판정 금지, stdout 파싱.
+  - `found no threats.` → clean / `found N threats.` + `Threat                  : <이름>` 줄 → malicious / `CmdTool: Failed with hr = 0x…` 등 → error.
+  - stdout은 ASCII뿐이고 경로의 한글 등은 `?`로 깨진다 → 출력 속 경로를 비교하지 않는다. 줄바꿈 `\r\n`.
+  - `-DisableRemediation`이면 파일이 남고 Defender 기록에도 안 남는다. 1개 25~70ms, 동시 4개 문제없음.
+  - Defender 제외 목록 조회·추가는 관리자 권한이 필요하다.
 - 실시간 보호가 켜져 있으면 EICAR 같은 파일은 만들자마자 Defender가 지울 수 있다. 테스트 시 고려한다.
 - 샘플 제출: `Get-MpPreference`의 `SubmitSamplesConsent`가 2(보내지 않음)가 아니면 파일이 Microsoft로 갈 수 있다. 원칙 2에 따라 UI/README에서 안내하고 상태를 표시한다.
 - Windows 특이점: 파일 잠금(`EBUSY`/`EPERM`), 경로 구분자 `\`(웹에서 `split("/")` 금지 → `lib/paths.ts`의 `fileName`/`lastSegment`), 탐색기 "경로로 복사"의 따옴표(API `normalizeInputPath`가 처리), `chmod`는 읽기 전용 속성만 바뀜, `rename` 대상이 잠겨 있으면 실패할 수 있음.
