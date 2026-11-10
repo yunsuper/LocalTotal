@@ -8,6 +8,11 @@ updates:
     groups:
       minor-and-patch:        # 작은 업데이트는 PR 하나로 묶기
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "@types/node"   # Node 24 유지: 메이저 업데이트는 Node를 올릴 때 직접
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"     # 7.0은 JS 컴파일러 API가 없어 ts-jest·nest build 불가. 7.1부터 다시 받음
+        versions: ["7.0.x"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
