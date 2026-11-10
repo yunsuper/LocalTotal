@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-LocalTotal: 파일 내용을 PC 밖으로 보내지 않는 로컬 수동 악성코드 검사기. macOS 1차(M0~M6) 완료, 현재 Windows 지원(M7) 작업 중.
+LocalTotal: 파일 내용을 PC 밖으로 보내지 않는 로컬 수동 악성코드 검사기. macOS(M0~M6)와 Windows 지원(M7) 완료(M7은 2026-11-10 PR #1로 main에 병합).
 상세 설계는 `docs/LocalTotal 프로젝트설계도 (macOS 우선) *.md` (docs/는 .gitignore로 제외, 로컬에만 있음).
 
 ## 절대 원칙
@@ -12,6 +12,7 @@ LocalTotal: 파일 내용을 PC 밖으로 보내지 않는 로컬 수동 악성�
    - 루트 `package.json`의 `dev`, `dev:clam`은 **실행 구조까지 그대로 둔다**(다른 진입점으로 감싸거나 OS 분기를 넣지 않는다). Windows는 별도 스크립트 `dev:win`, `dev:clam:win`으로 추가해서 맥을 다시 확인할 필요가 없게 한다.
    - 공통 코드를 고치면 macOS에서 결과가 이전과 같은지 단위 테스트로 보장한다(Defender 결과가 없을 때 판정이 기존과 동일해야 함).
    - 방법: OS 차이는 `platform` 인자를 받는 순수 함수로 분리하고(`common/fs-errors.ts`, `common/input-path.ts`, web `lib/paths.ts`, `lib/platform.ts`), spec에 **M7 이전 구현을 그대로 복사**해 `'darwin'`에서 결과가 같은지 비교한다. 이 복사본은 고치지 않는다.
+   - 사용자가 결정해 맥 동작을 일부러 바꾼 경우(예: 격리 전 권한 오류 500 → 403, 맥 권한 오류 안내)에는 복사본은 그대로 두고, spec 기대값을 "이전 결과 + 바뀐 부분"으로 적는다. 바뀌지 않은 경우는 계속 복사본과 비교한다.
 2. **파일 내용은 외부로 보내지 않는다.** VirusTotal에는 SHA-256 해시만 보낸다(`GET /api/v3/files/{sha256}`). 업로드 코드는 만들지 않는다. Defender도 샘플 자동 제출이 일어나지 않게 해야 한다(아래 Windows 메모 참고).
 3. **모든 서버는 `127.0.0.1`에만 바인딩한다.** API 4000, 웹 3000, clamd 3310. `0.0.0.0`·`localhost` 와일드카드 바인딩 금지. `local-only.middleware.ts`(Host·Origin 검사, 변경 요청에 `X-LocalTotal: 1`)를 약화시키지 않는다.
 4. **기능을 바꾸면 문서도 같이 업데이트한다.** `README.md`와 `docs/`(설계도 .md의 해당 섹션·로드맵 상태, 작업일지 `docs/작업일지.md`에 날짜별 기록). docs/는 git에 올라가지 않는다.
@@ -21,16 +22,21 @@ LocalTotal: 파일 내용을 PC 밖으로 보내지 않는 로컬 수동 악성�
 ## 구조
 
 ```text
-package.json            # npm workspaces + concurrently. dev = clam + api + web
+package.json            # npm workspaces + concurrently. dev = clam + api + web (macOS), dev:win (Windows)
 config/clamav/          # macOS 전용 clamd.conf, freshclam.conf (/opt/homebrew 경로)
-apps/api/src/           # NestJS 12, 127.0.0.1:4000
+config/clamav/windows/  # Windows 전용 clamd.conf, freshclam.conf (DB 경로는 --datadir)
+scripts/dev-clam-win.mjs # Windows clamd 실행 (ClamAV 탐색, 3310 확인, freshclam → clamd)
+apps/api/src/           # NestJS 12, 127.0.0.1:4000 (포트 고정)
   main.ts               # CORS(http://127.0.0.1:3000), localOnly, 바인딩
-  common/               # app-paths(OS별 데이터 폴더), file-hash, local-only.middleware
+  common/               # app-paths(OS별 데이터 폴더), file-hash, local-only.middleware,
+                        # fs-errors(파일 오류 메시지·응답), input-path(따옴표 경로)
   store/json-file.ts    # 임시 파일 → rename 원자적 쓰기 + 직렬화 큐
-  engines/              # scan-engine.interface(EngineName에 'defender' 이미 있음), clamav, virustotal, engines.service
+  engines/              # scan-engine.interface, clamav, virustotal, defender(+defender-output 파싱·샘플 제출 정책), engines.service
   scans/                # verdict.ts(판정 규칙), scans.service(파일 1개), scan-jobs.service(폴더·동시성 4·SSE)
   quarantine/ exclusions/ settings/
 apps/web/src/           # Next.js 16 App Router + Tailwind v4, 127.0.0.1:3000. 표시만 담당
+  lib/                  # paths(파일명), platform(OS별 문구 osTexts), results(카드 표시 여부)
+  components/           # PlatformProvider(useOsTexts), EngineBadges, EngineNotices(Defender 안내) 등
 ```
 
 데이터 폴더: macOS `~/Library/Application Support/LocalTotal/`, Windows `%APPDATA%\LocalTotal\` (`appDataDir()`).
@@ -40,10 +46,10 @@ apps/web/src/           # Next.js 16 App Router + Tailwind v4, 127.0.0.1:3000. �
 ```bash
 npm install                 # 루트에서 한 번
 npm run dev                 # clamd + API + 웹 (macOS)
-npm run dev:win             # clamd + API + 웹 (Windows, M7에서 추가)
+npm run dev:win             # clamd + API + 웹 (Windows)
 npm run dev:app             # API + 웹만 (공통)
-npm test -w apps/api        # Jest 단위 테스트 (verdict, exclusion-matcher, fs-errors, input-path)
-npm test -w apps/web        # node --test (paths, platform). 새 의존성 없이 Node 24 타입 제거 실행
+npm test -w apps/api        # Jest 단위 테스트 (verdict, exclusion-matcher, fs-errors, input-path, defender-output, engines.service, scans.service)
+npm test -w apps/web        # node --test src/**/*.test.mts (paths, platform, results). 새 의존성 없이 Node 24 타입 제거 실행
 npm run lint -w apps/api    # oxlint
 ```
 
@@ -52,8 +58,8 @@ npm run lint -w apps/api    # oxlint
 
 ## Git 규칙
 
-- Windows(M7) 작업은 `feat/windows` 브랜치에서 한다. main에 직접 커밋하지 않는다.
-- **단계가 끝날 때마다 커밋한다.** 메시지는 `M7 n단계: 요약` 형식에 변경 내용과 확인 결과를 적는다. 단계와 관계없는 변경(예: `package-lock.json` 동기화)은 따로 커밋한다.
+- 작업은 브랜치에서 한다(기능 `feat/...`, 수정 `fix/...`, 문서 `docs/...`). main에 직접 커밋하지 않는다.
+- **단계가 끝날 때마다 커밋한다.** 메시지는 `단계 이름: 요약` 형식(마일스톤 작업이면 `M8 n단계: 요약`처럼)에 변경 내용과 확인 결과를 적는다. 단계와 관계없는 변경(예: `package-lock.json` 동기화)은 따로 커밋한다.
 - 커밋에는 그 단계의 파일만 명시적으로 넣는다(`git add -A` 금지). `.vscode/`, `.env`, `docs/`는 커밋하지 않는다.
 - 공통 코드를 고치는 단계는 커밋 전에 `npm test -w apps/api`가 통과해야 한다.
 - push는 사용자가 요청할 때만 한다.
@@ -67,7 +73,13 @@ npm run lint -w apps/api    # oxlint
 - 외부 엔진은 npm 래퍼 없이 직접 호출한다(clamd는 `net` 소켓 INSTREAM).
 - 새 의존성은 꼭 필요할 때만, 네이티브 모듈은 쓰지 않는다.
 
-## Windows(M7) 메모
+## 실동작 확인할 때
+
+- 앱을 띄우기 전에 3310·4000·3000 포트가 비어 있는지 확인한다. 사용자가 직접 띄운 인스턴스가 있을 수 있고, 그 프로세스는 종료하지 않는다. API 포트는 4000 고정이라 두 번째 인스턴스를 띄울 수 없다 → 사용자 인스턴스가 떠 있으면 실동작 확인은 미루고 그렇다고 보고한다.
+- 띄운 서버는 끝나면 종료하고 포트가 비었는지 확인한다. 테스트 파일은 스크래치 폴더에 만들고 지운다.
+- 권한 오류 재현(macOS): `chmod 000` 파일을 **직접** 검사하면 경로 확인 단계(403 `noPermissionMessage`)에서 막혀 검사 결과가 생기지 않는다. 검사 결과 메시지를 보려면 그 파일이 든 **폴더**를 검사한다. 격리는 검사 뒤에 `chmod 000`, 복원은 원래 폴더를 `chmod 555`로 재현한다. 삭제 재현은 실제 격리 폴더 권한을 바꿔야 하므로 사용자에게 맡긴다.
+
+## Windows 메모
 
 ClamAV (Windows)
 - 설치: `winget install --id Cisco.ClamAV -e`(1.5.4, 맥과 같은 버전). 대안은 clamav.net 공식 MSI. Homebrew 경로를 가정하지 않는다.
@@ -98,6 +110,5 @@ Defender
 - 화면의 OS별 문구는 `lib/platform.ts`의 `osTexts`에 모으고 컴포넌트는 `useOsTexts()`로 읽는다(Next 서버의 `process.platform`을 layout에서 전달). 문구를 하드코딩하지 않는다.
 - PowerShell 5.1의 `Set-Content -Encoding utf8`은 BOM을 붙인다. JSON 등을 고칠 때 쓰지 않는다.
 - PowerShell 큰따옴표 안의 `$`는 변수로 치환된다(EICAR 문자열의 `$H`가 사라진 적 있음). 테스트 데이터는 스크립트 파일로 만든다.
-- 테스트로 앱을 띄우기 전에 3310·4000·3000 포트가 비어 있는지 확인한다. 사용자가 직접 띄운 인스턴스가 있을 수 있고, 그 프로세스는 종료하지 않는다.
 - Defender가 차단한 파일을 열면 Node는 `code: 'UNKNOWN'`, `errno: -4094`를 낸다(Win32 오류 225 "file contains a virus"). 실시간 보호는 파일 생성 직후가 아니라 나중에 다른 프로세스가 열 때 반응할 수 있다.
 - PowerShell 5.1 기본 셸이고 npm 스크립트는 `cmd.exe`로 실행된다. `sh -c` 스크립트는 Windows에서 동작하지 않는다.
