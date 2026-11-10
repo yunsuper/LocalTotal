@@ -1,0 +1,31 @@
+name: maintenance-reminder
+
+on:
+  schedule:
+    - cron: "0 0 1 */2 *"     # 홀수 달 1일 09:00 (KST)
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `정기 점검 ${new Date().toISOString().slice(0, 7)}`,
+              body: [
+                '로컬에서 직접 해야 하는 업데이트입니다.',
+                '',
+                '- [ ] 맥: `brew upgrade clamav`',
+                '- [ ] Windows: `winget upgrade Cisco.ClamAV`',
+                '- [ ] Node 24 최신 버전 확인 (두 컴퓨터)',
+                '- [ ] Dependabot PR 확인·병합',
+                '- [ ] Defender 큰 업데이트가 있었다면 작업일지의 제외 폴더 재확인 절차 실행',
+              ].join('\n'),
+            });

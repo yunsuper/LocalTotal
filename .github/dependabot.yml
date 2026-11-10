@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"            # npm workspaces 루트 (apps/api, apps/web 함께)
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:        # 작은 업데이트는 PR 하나로 묶기
+        update-types: ["minor", "patch"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
