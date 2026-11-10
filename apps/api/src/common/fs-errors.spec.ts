@@ -170,8 +170,13 @@ describe.each(['darwin', 'linux'] as const)(
       }
     });
 
-    it('권한 오류 안내 문구', () => {
-      expect(noPermissionMessage(platform)).toBe(LEGACY_NO_PERMISSION);
+    it('경로 확인 단계 권한 오류 안내 문구', () => {
+      // 맥은 다른 권한 오류와 같은 안내로 통일(사용자 결정), 그 밖은 M7 이전과 같다
+      expect(noPermissionMessage(platform)).toBe(
+        platform === 'darwin'
+          ? '읽기 권한이 없습니다. 전체 디스크 접근 권한이 꺼져 있으면 이 오류가 날 수 있어요. 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱을 켜 보세요'
+          : LEGACY_NO_PERMISSION,
+      );
     });
 
     it('UNKNOWN 오류를 Windows 오류로 보지 않는다', () => {

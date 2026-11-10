@@ -68,10 +68,12 @@ export function describeFsError(
   return (err as Error).message;
 }
 
-/** 경로 확인 단계(resolveTarget)의 권한 오류 안내 */
+/** 경로 확인 단계(resolveTarget)의 권한 오류 안내. macOS는 다른 권한 오류와 같은 안내를 쓴다 */
 export function noPermissionMessage(
   platform: Platform = process.platform,
 ): string {
+  if (platform === 'darwin')
+    return `읽기 권한이 없습니다. ${MAC_FULL_DISK_ACCESS_HINT}`;
   return platform === 'win32'
     ? '읽기 권한이 없습니다 (관리자 권한이 필요한 폴더이거나 다른 프로그램이 막고 있을 수 있음)'
     : '읽기 권한이 없습니다 (VS Code 전체 디스크 접근 권한 확인)';

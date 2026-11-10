@@ -61,7 +61,7 @@ npm run lint -w apps/api    # oxlint
 ## 코드 규칙
 
 - 에러 응답은 `{ code, message }` 형태(예: `EXCLUDED`, `FILE_CHANGED`, `FILE_BUSY`, `NO_PERMISSION`). 사용자에게 보이는 메시지는 한국어.
-- macOS 권한 오류(EACCES·EPERM)는 검사 결과·격리·복원·삭제 메시지 뒤에 전체 디스크 접근 권한 안내(`MAC_FULL_DISK_ACCESS_HINT`)를 붙인다. 원인을 단정하지 않는 문구로 쓴다("…날 수 있어요"). 새 파일 작업 오류도 `describeFsError`/`mapFsError`/`rethrowPreQuarantineError`를 거치게 한다. Windows·Linux는 안내 없음.
+- macOS 권한 오류(EACCES·EPERM)는 검사 시작 경로 확인(`noPermissionMessage`)·검사 결과·격리·복원·삭제 메시지 뒤에 전체 디스크 접근 권한 안내(`MAC_FULL_DISK_ACCESS_HINT`)를 붙인다. 원인을 단정하지 않는 문구로 쓴다("…날 수 있어요"). 새 파일 작업 오류도 `describeFsError`/`mapFsError`/`rethrowPreQuarantineError`를 거치게 한다. Windows·Linux는 안내 없음.
 - 판정 로직은 백엔드(`verdict.ts`)에만 둔다. 판정 규칙을 바꾸면 `verdict.spec.ts`도 고친다.
 - 로그에는 경로와 판정만 남기고 파일 내용·API 키는 남기지 않는다.
 - 외부 엔진은 npm 래퍼 없이 직접 호출한다(clamd는 `net` 소켓 INSTREAM).
