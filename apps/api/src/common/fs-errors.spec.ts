@@ -7,6 +7,7 @@ import {
 import {
   describeFsError,
   isWindowsUnknownOpenError,
+  MAC_FULL_DISK_ACCESS_HINT,
   mapFsError,
   noPermissionMessage,
   rethrowPreQuarantineError,
@@ -93,8 +94,17 @@ describe.each(['darwin', 'linux'] as const)(
       }
       if (MAPPED_BEFORE_QUARANTINE.has(name)) {
         expect(thrown).toBeInstanceOf(HttpException);
-        expect(shape(thrown as Error)).toEqual(
-          shape(legacyMapFsError(err, '격리 실패')),
+        const legacy = legacyMapFsError(err, '격리 실패') as HttpException;
+        const macHint = platform === 'darwin' && name !== 'EBUSY';
+        // 상태 코드·code는 mapFsError와 같고, 맥 권한 오류만 메시지 뒤에 안내가 붙는다
+        expect((thrown as HttpException).getStatus()).toBe(legacy.getStatus());
+        expect((thrown as HttpException).getResponse()).toEqual(
+          macHint
+            ? {
+                ...(legacy.getResponse() as object),
+                message: `격리 실패 (권한 없음). ${MAC_FULL_DISK_ACCESS_HINT}`,
+              }
+            : legacy.getResponse(),
         );
       } else {
         expect(thrown).toBe(err);
@@ -113,7 +123,10 @@ describe.each(['darwin', 'linux'] as const)(
         expect((e as ForbiddenException).getStatus()).toBe(403);
         expect((e as ForbiddenException).getResponse()).toEqual({
           code: 'NO_PERMISSION',
-          message: '파일을 열 수 없어 격리하지 못했습니다 (권한 없음)',
+          message:
+            platform === 'darwin'
+              ? '파일을 열 수 없어 격리하지 못했습니다 (권한 없음). 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱을 켜 주세요'
+              : '파일을 열 수 없어 격리하지 못했습니다 (권한 없음)',
         });
       }
     });
@@ -185,5 +198,20 @@ describe('win32', () => {
 
   it('권한 오류 안내는 Windows 문구', () => {
     expect(noPermissionMessage('win32')).not.toContain('전체 디스크');
+  });
+});
+
+describe('격리 전 단계 권한 오류의 전체 디스크 접근 권한 안내', () => {
+  it.each(['win32', 'linux'] as const)('%s에는 붙지 않는다', (platform) => {
+    const rethrow = rethrowPreQuarantineError('격리 실패', platform);
+    try {
+      rethrow(fsErr('EPERM', -1));
+      throw new Error('던져야 함');
+    } catch (e) {
+      expect((e as ForbiddenException).getResponse()).toEqual({
+        code: 'NO_PERMISSION',
+        message: '격리 실패 (권한 없음)',
+      });
+    }
   });
 });

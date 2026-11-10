@@ -81,10 +81,15 @@ export function mapFsError(
   return new Error(`${fallback}: ${(err as Error).message}`);
 }
 
+/** macOS 권한 오류에 덧붙이는 안내 */
+export const MAC_FULL_DISK_ACCESS_HINT =
+  '시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱을 켜 주세요';
+
 /**
  * 격리 전 단계(해시 재확인·복사)에서 쓰는 처리.
  * 권한 오류(EACCES·EPERM) → 403 NO_PERMISSION, 사용 중(EBUSY) → 409 FILE_BUSY,
  * Windows 원인 불명 열기 실패 → 409 FILE_UNREADABLE (모두 mapFsError와 같은 응답).
+ * macOS 권한 오류는 메시지 뒤에 전체 디스크 접근 권한 안내를 덧붙인다.
  * 그 밖의 오류는 그대로 던진다. 이전에는 권한 오류도 그대로 던져 500이 됐다.
  */
 export function rethrowPreQuarantineError(
@@ -93,6 +98,12 @@ export function rethrowPreQuarantineError(
 ): (err: unknown) => never {
   return (err) => {
     const code = errCode(err);
+    if (platform === 'darwin' && (code === 'EACCES' || code === 'EPERM')) {
+      throw new ForbiddenException({
+        code: 'NO_PERMISSION',
+        message: `${fallback} (권한 없음). ${MAC_FULL_DISK_ACCESS_HINT}`,
+      });
+    }
     if (
       code === 'EACCES' ||
       code === 'EPERM' ||

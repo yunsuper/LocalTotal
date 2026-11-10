@@ -278,7 +278,7 @@ LocalTotal/
 | --- | --- |
 | ClamAV 배지가 계속 회색 | 첫 실행은 시그니처 다운로드로 오래 걸립니다. 터미널의 `clam` 로그를 확인하세요 |
 | `EADDRINUSE` / 포트 사용 중 | 이전 프로세스가 남아 있습니다. `lsof -i :3310 -i :4000 -i :3000`으로 확인 후 종료 |
-| 파일이 `EPERM` 오류 | 실행 앱에 전체 디스크 접근 권한을 주세요 |
+| 파일이 `EPERM` 오류, 격리 시 "권한 없음" | (macOS) 실행 앱에 전체 디스크 접근 권한을 주세요. 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한. 파일 자체에 읽기 권한이 없으면 권한을 고친 뒤 다시 검사하세요 |
 | VirusTotal 배지 비활성 | `apps/api/.env`의 `VT_API_KEY` 확인 후 재시작 |
 | Intel Mac에서 clamd 실패 | `config/clamav/*.conf`와 `package.json`의 `/opt/homebrew/var/lib/clamav`를 `/usr/local/var/lib/clamav`로 변경 |
 
