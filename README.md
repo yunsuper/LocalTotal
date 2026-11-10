@@ -33,7 +33,7 @@ LocalTotal은 내 컴퓨터에서 **ClamAV**(Windows는 **Microsoft Defender**�
 | 항목 | 버전 |
 | --- | --- |
 | OS | macOS (Apple Silicon 권장, Intel은 아래 참고) 또는 Windows 10/11 |
-| Node.js | 22 이상 (v24에서 확인) |
+| Node.js | 24.9 이상 (Node 22에서는 API 테스트가 실패함) |
 | Homebrew | 최신 (macOS) |
 | ClamAV | 1.5 이상 (macOS는 Homebrew, Windows는 winget으로 설치) |
 | Microsoft Defender | Windows 기본 포함 (추가 설치 없음) |
@@ -281,7 +281,7 @@ LocalTotal/
 | 증상 | 해결 |
 | --- | --- |
 | ClamAV 배지가 계속 회색 | 첫 실행은 시그니처 다운로드로 오래 걸립니다. 터미널의 `clam` 로그를 확인하세요 |
-| `EADDRINUSE` / 포트 사용 중 | 이전 프로세스가 남아 있습니다. macOS는 `lsof -i :3310 -i :4000 -i :3000`, Windows PowerShell은 `Get-NetTCPConnection -LocalPort 3310,4000,3000 -State Listen`으로 확인 후 종료 |
+| `EADDRINUSE` / 포트 사용 중 | 이전 프로세스가 남아 있습니다. macOS는 `lsof -i :3310 -i :4000 -i :3000`, Windows PowerShell은 `Get-NetTCPConnection -LocalPort 3310,4000,3000 -State Listen -ErrorAction SilentlyContinue`으로 확인 후 종료 |
 | 검사 시 "읽기 권한이 없습니다", 검사 결과 "읽기 권한 없음", 격리·복원·삭제 시 "권한 없음" | (macOS) 전체 디스크 접근 권한이 꺼져 있으면 날 수 있어요. 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱(터미널, VS Code 등)을 켜 보세요. 파일·폴더 자체의 권한이 없을 때도 같은 오류가 나므로, 그때는 권한을 고친 뒤 다시 시도하세요 |
 | VirusTotal 배지 비활성 | `apps/api/.env`의 `VT_API_KEY` 확인 후 재시작 |
 | Intel Mac에서 clamd 실패 | `config/clamav/*.conf`와 `package.json`의 `/opt/homebrew/var/lib/clamav`를 `/usr/local/var/lib/clamav`로 변경 |
