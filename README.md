@@ -1,11 +1,10 @@
 # LocalTotal
 
-> 파일 내용은 내 Mac 밖으로 나가지 않는, 로컬 수동 악성코드 검사 도구
+> > 파일 내용은 내 컴퓨터 밖으로 나가지 않는, 로컬 수동 악성코드 검사 도구 (macOS · Windows)
 
 LocalTotal은 내 컴퓨터에서 **ClamAV**로 파일을 검사하고, **VirusTotal**에는 파일 대신 **SHA-256 해시만** 조회해 결과를 합쳐 보여주는 개인용 웹 앱입니다. 게임 모드처럼 출처가 다양한 파일을 받았을 때 "이거 열어도 되나?"를 빠르게 확인하는 용도로 만들었습니다.
 
-- 현재 지원: **macOS** (Apple Silicon 기준)
-- 예정: Windows (Microsoft Defender 연동)
+- 현재 지원: **macOS** (Apple Silicon 기준), Windows 10/11
 
 > ⚠️ LocalTotal은 실시간 백신을 대체하지 않습니다. 의심 파일을 수동으로 확인하는 보조 도구입니다.
 
