@@ -9,7 +9,7 @@ import { chmod, copyFile, lstat, mkdir, unlink } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { appDataDir, quarantineDir } from '../common/app-paths';
 import { sha256File } from '../common/file-hash';
-import { mapFsError, rethrowIfWindowsUnknownOpen } from '../common/fs-errors';
+import { mapFsError, rethrowPreQuarantineError } from '../common/fs-errors';
 import { ExclusionsService } from '../exclusions/exclusions.service';
 import { ScanJobsService } from '../scans/scan-jobs.service';
 import type { FinalVerdict } from '../scans/verdict';
@@ -90,7 +90,7 @@ export class QuarantineService {
           message: '일반 파일만 격리할 수 있습니다',
         });
       }
-      const notQuarantined = rethrowIfWindowsUnknownOpen(
+      const notQuarantined = rethrowPreQuarantineError(
         '파일을 열 수 없어 격리하지 못했습니다',
       );
       const currentHash = await sha256File(original).catch(notQuarantined);

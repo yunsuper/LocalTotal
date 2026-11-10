@@ -9,7 +9,7 @@ import {
   isWindowsUnknownOpenError,
   mapFsError,
   noPermissionMessage,
-  rethrowIfWindowsUnknownOpen,
+  rethrowPreQuarantineError,
   WINDOWS_UNKNOWN_OPEN_MESSAGE,
 } from './fs-errors';
 
@@ -79,9 +79,43 @@ describe.each(['darwin', 'linux'] as const)(
       );
     });
 
-    it.each(SAMPLES)('격리 전 단계 오류는 그대로 던진다 — %s', (_, err) => {
-      const rethrow = rethrowIfWindowsUnknownOpen('격리 실패', platform);
-      expect(() => rethrow(err)).toThrow(err as Error);
+    // 격리 전 단계: 권한·사용 중 오류는 mapFsError(M7 이전 구현)와 같은 응답으로 바꾸고
+    // (이전에는 그대로 던져 500), 나머지는 이전처럼 그대로 던진다.
+    const MAPPED_BEFORE_QUARANTINE = new Set(['EACCES', 'EPERM', 'EBUSY']);
+
+    it.each(SAMPLES)('격리 전 단계 오류 — %s', (name, err) => {
+      const rethrow = rethrowPreQuarantineError('격리 실패', platform);
+      let thrown: unknown;
+      try {
+        rethrow(err);
+      } catch (e) {
+        thrown = e;
+      }
+      if (MAPPED_BEFORE_QUARANTINE.has(name)) {
+        expect(thrown).toBeInstanceOf(HttpException);
+        expect(shape(thrown as Error)).toEqual(
+          shape(legacyMapFsError(err, '격리 실패')),
+        );
+      } else {
+        expect(thrown).toBe(err);
+      }
+    });
+
+    it('격리 전 단계 권한 오류는 500 대신 403 NO_PERMISSION', () => {
+      const rethrow = rethrowPreQuarantineError(
+        '파일을 열 수 없어 격리하지 못했습니다',
+        platform,
+      );
+      expect(() => rethrow(fsErr('EACCES', -13))).toThrow(ForbiddenException);
+      try {
+        rethrow(fsErr('EACCES', -13));
+      } catch (e) {
+        expect((e as ForbiddenException).getStatus()).toBe(403);
+        expect((e as ForbiddenException).getResponse()).toEqual({
+          code: 'NO_PERMISSION',
+          message: '파일을 열 수 없어 격리하지 못했습니다 (권한 없음)',
+        });
+      }
     });
 
     it('권한 오류 안내 문구', () => {
@@ -115,7 +149,7 @@ describe('win32', () => {
   });
 
   it('격리 전 단계의 원인 불명 오류는 500 대신 409 FILE_UNREADABLE', () => {
-    const rethrow = rethrowIfWindowsUnknownOpen(
+    const rethrow = rethrowPreQuarantineError(
       '파일을 열 수 없어 격리하지 못했습니다',
       'win32',
     );

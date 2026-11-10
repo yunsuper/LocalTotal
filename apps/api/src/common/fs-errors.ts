@@ -83,15 +83,23 @@ export function mapFsError(
 
 /**
  * 격리 전 단계(해시 재확인·복사)에서 쓰는 처리.
- * Windows의 원인 불명 열기 실패만 409로 바꾸고, 그 밖의 오류는 그대로 던진다(macOS 동작 유지).
+ * 권한 오류(EACCES·EPERM) → 403 NO_PERMISSION, 사용 중(EBUSY) → 409 FILE_BUSY,
+ * Windows 원인 불명 열기 실패 → 409 FILE_UNREADABLE (모두 mapFsError와 같은 응답).
+ * 그 밖의 오류는 그대로 던진다. 이전에는 권한 오류도 그대로 던져 500이 됐다.
  */
-export function rethrowIfWindowsUnknownOpen(
+export function rethrowPreQuarantineError(
   fallback: string,
   platform: Platform = process.platform,
 ): (err: unknown) => never {
   return (err) => {
-    if (isWindowsUnknownOpenError(err, platform))
-      throw unreadableError(fallback);
+    const code = errCode(err);
+    if (
+      code === 'EACCES' ||
+      code === 'EPERM' ||
+      code === 'EBUSY' ||
+      isWindowsUnknownOpenError(err, platform)
+    )
+      throw mapFsError(err, fallback, platform);
     throw err;
   };
 }
