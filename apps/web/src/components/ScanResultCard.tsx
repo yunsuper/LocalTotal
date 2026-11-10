@@ -143,7 +143,9 @@ export function ScanResultCard({
                     <thead>
                         <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800">
                             <th className="py-2 font-normal">엔진</th>
-                            <th className="py-2 font-normal">결과</th>
+                            <th className="whitespace-nowrap py-2 font-normal">
+                                결과
+                            </th>
                             <th className="py-2 font-normal">상세</th>
                             <th className="py-2 text-right font-normal">
                                 시간
@@ -164,7 +166,9 @@ export function ScanResultCard({
                                     <td
                                         className={`py-2 pr-3 font-semibold ${v.className}`}
                                     >
-                                        {v.label}
+                                        <span className="whitespace-nowrap">
+                                            {v.label}
+                                        </span>
                                         {r.threatName && (
                                             <div className="font-mono text-xs font-normal text-zinc-500 dark:text-zinc-400">
                                                 {r.threatName}
