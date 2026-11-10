@@ -240,6 +240,18 @@ npm test -w apps/web   # Node 내장 테스트 (node --test)
 - `defender-output.spec.ts`, `engines.service.spec.ts`, `scans.service.spec.ts` — Defender 출력 파싱·샘플 제출 설정, OS별 엔진 목록, 검사 흐름(Defender 결과가 없으면 이전과 동일)
 - `results.test.mts` (웹) — 결과 카드로 보여 줄지 접힌 목록에 넣을지
 
+## 자동 업데이트
+
+GitHub에서 아래 세 가지가 자동으로 돌아갑니다(`.github/`).
+
+| 파일 | 하는 일 |
+| --- | --- |
+| `dependabot.yml` | 매달 npm 패키지(`apps/api`, `apps/web` 함께)와 GitHub Actions 업데이트 PR 생성. minor·patch는 PR 하나로 묶음 |
+| `workflows/test.yml` | PR마다 macOS·Windows에서 `npm ci` 후 API·웹 단위 테스트 실행 (수동 실행도 가능) |
+| `workflows/maintenance-reminder.yml` | 홀수 달 1일 09:00(KST)에 정기 점검 이슈 생성 |
+
+ClamAV·Node 업데이트와 Defender 제외 폴더 재확인은 각 컴퓨터에서 직접 해야 하므로, 정기 점검 이슈의 체크리스트를 따라 진행합니다. Dependabot PR은 테스트가 통과한 것을 확인한 뒤 병합합니다.
+
 ## 데이터 저장 위치
 
 macOS `~/Library/Application Support/LocalTotal/`, Windows `%APPDATA%\LocalTotal\`
@@ -266,6 +278,7 @@ macOS `~/Library/Application Support/LocalTotal/`, Windows `%APPDATA%\LocalTotal
 
 ```text
 LocalTotal/
+├─ .github/              # Dependabot, PR 테스트(macOS·Windows), 정기 점검 이슈
 ├─ package.json          # npm workspaces, 실행 스크립트
 ├─ config/clamav/        # LocalTotal 전용 clamd·freshclam 설정 (macOS), windows/ (Windows)
 ├─ scripts/              # dev-clam-win.mjs — Windows용 clamd 실행 (npm run dev:clam:win)

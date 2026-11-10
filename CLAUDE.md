@@ -22,6 +22,7 @@ LocalTotal: 파일 내용을 PC 밖으로 보내지 않는 로컬 수동 악성�
 ## 구조
 
 ```text
+.github/                # dependabot(매달 npm·actions), workflows/test(PR마다 macOS·Windows 단위 테스트), maintenance-reminder(홀수 달 점검 이슈)
 package.json            # npm workspaces + concurrently. dev = clam + api + web (macOS), dev:win (Windows)
 config/clamav/          # macOS 전용 clamd.conf, freshclam.conf (/opt/homebrew 경로)
 config/clamav/windows/  # Windows 전용 clamd.conf, freshclam.conf (DB 경로는 --datadir)
