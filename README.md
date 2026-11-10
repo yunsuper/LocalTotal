@@ -246,7 +246,7 @@ GitHub에서 아래 세 가지가 자동으로 돌아갑니다(`.github/`).
 
 | 파일 | 하는 일 |
 | --- | --- |
-| `dependabot.yml` | 매달 npm 패키지(`apps/api`, `apps/web` 함께)와 GitHub Actions 업데이트 PR 생성. minor·patch는 PR 하나로 묶음 |
+| `dependabot.yml` | 매달 npm 패키지(`apps/api`, `apps/web` 함께)와 GitHub Actions 업데이트 PR 생성. minor·patch는 PR 하나로 묶음. `@types/node` 메이저 업데이트는 제외(Node 24 유지) |
 | `workflows/test.yml` | PR마다 macOS·Windows에서 `npm ci` 후 API·웹 단위 테스트 실행 (수동 실행도 가능) |
 | `workflows/maintenance-reminder.yml` | 홀수 달 1일 09:00(KST)에 정기 점검 이슈 생성 |
 

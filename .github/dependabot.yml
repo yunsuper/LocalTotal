@@ -8,6 +8,9 @@ updates:
     groups:
       minor-and-patch:        # 작은 업데이트는 PR 하나로 묶기
         update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "@types/node"   # Node 24 유지: 메이저 업데이트는 Node를 올릴 때 직접
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
