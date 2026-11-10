@@ -67,16 +67,66 @@ const shape = (e: Error) => ({
   body: e instanceof HttpException ? e.getResponse() : undefined,
 });
 
+// 사용자 결정(2026-11-10): macOS 권한 오류(EACCES·EPERM)만 M7 이전 메시지 뒤에
+// 전체 디스크 접근 권한 안내가 붙는다. 상태 코드·code와 그 밖의 오류는 이전과 같다.
+const PERMISSION = new Set(['EACCES', 'EPERM']);
+const macHinted = (platform: NodeJS.Platform, name: string) =>
+  platform === 'darwin' && PERMISSION.has(name);
+const withHint = (message: string) =>
+  `${message}. ${MAC_FULL_DISK_ACCESS_HINT}`;
+
+/** 검사 결과 메시지 기대값 */
+const expectedDescribe = (
+  platform: NodeJS.Platform,
+  name: string,
+  err: unknown,
+) =>
+  macHinted(platform, name)
+    ? withHint(legacyDescribeFsError(err))
+    : legacyDescribeFsError(err);
+
+/** mapFsError 응답 기대값 (안내가 붙는 경우 상태 코드·본문으로 비교) */
+const expectMapped = (
+  actual: Error,
+  platform: NodeJS.Platform,
+  name: string,
+  err: unknown,
+  fallback: string,
+) => {
+  const legacy = legacyMapFsError(err, fallback);
+  if (!macHinted(platform, name)) {
+    expect(shape(actual)).toEqual(shape(legacy));
+    return;
+  }
+  const body = (legacy as HttpException).getResponse() as {
+    message: string;
+  };
+  expect(actual).toBeInstanceOf(ForbiddenException);
+  expect((actual as HttpException).getStatus()).toBe(
+    (legacy as HttpException).getStatus(),
+  );
+  expect((actual as HttpException).getResponse()).toEqual({
+    ...body,
+    message: withHint(body.message),
+  });
+};
+
 describe.each(['darwin', 'linux'] as const)(
-  '%s: M7 이전과 결과가 같다',
+  '%s: M7 이전과 결과가 같다 (맥 권한 오류는 안내만 추가)',
   (platform) => {
-    it.each(SAMPLES)('describeFsError — %s', (_, err) => {
-      expect(describeFsError(err, platform)).toBe(legacyDescribeFsError(err));
+    it.each(SAMPLES)('describeFsError — %s', (name, err) => {
+      expect(describeFsError(err, platform)).toBe(
+        expectedDescribe(platform, name, err),
+      );
     });
 
-    it.each(SAMPLES)('mapFsError — %s', (_, err) => {
-      expect(shape(mapFsError(err, '복원에 실패했습니다', platform))).toEqual(
-        shape(legacyMapFsError(err, '복원에 실패했습니다')),
+    it.each(SAMPLES)('mapFsError — %s', (name, err) => {
+      expectMapped(
+        mapFsError(err, '복원에 실패했습니다', platform),
+        platform,
+        name,
+        err,
+        '복원에 실패했습니다',
       );
     });
 
@@ -94,18 +144,7 @@ describe.each(['darwin', 'linux'] as const)(
       }
       if (MAPPED_BEFORE_QUARANTINE.has(name)) {
         expect(thrown).toBeInstanceOf(HttpException);
-        const legacy = legacyMapFsError(err, '격리 실패') as HttpException;
-        const macHint = platform === 'darwin' && name !== 'EBUSY';
-        // 상태 코드·code는 mapFsError와 같고, 맥 권한 오류만 메시지 뒤에 안내가 붙는다
-        expect((thrown as HttpException).getStatus()).toBe(legacy.getStatus());
-        expect((thrown as HttpException).getResponse()).toEqual(
-          macHint
-            ? {
-                ...(legacy.getResponse() as object),
-                message: `격리 실패 (권한 없음). ${MAC_FULL_DISK_ACCESS_HINT}`,
-              }
-            : legacy.getResponse(),
-        );
+        expectMapped(thrown as Error, platform, name, err, '격리 실패');
       } else {
         expect(thrown).toBe(err);
       }
@@ -125,7 +164,7 @@ describe.each(['darwin', 'linux'] as const)(
           code: 'NO_PERMISSION',
           message:
             platform === 'darwin'
-              ? '파일을 열 수 없어 격리하지 못했습니다 (권한 없음). 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱을 켜 주세요'
+              ? '파일을 열 수 없어 격리하지 못했습니다 (권한 없음). 전체 디스크 접근 권한이 꺼져 있으면 이 오류가 날 수 있어요. 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱을 켜 보세요'
               : '파일을 열 수 없어 격리하지 못했습니다 (권한 없음)',
         });
       }
@@ -201,17 +240,55 @@ describe('win32', () => {
   });
 });
 
-describe('격리 전 단계 권한 오류의 전체 디스크 접근 권한 안내', () => {
-  it.each(['win32', 'linux'] as const)('%s에는 붙지 않는다', (platform) => {
-    const rethrow = rethrowPreQuarantineError('격리 실패', platform);
-    try {
-      rethrow(fsErr('EPERM', -1));
-      throw new Error('던져야 함');
-    } catch (e) {
+describe('맥 권한 오류의 전체 디스크 접근 권한 안내', () => {
+  it('맥: 검사 결과·격리·복원·삭제 메시지에 모두 붙는다', () => {
+    expect(describeFsError(fsErr('EPERM', -1), 'darwin')).toBe(
+      '읽기 권한 없음. 전체 디스크 접근 권한이 꺼져 있으면 이 오류가 날 수 있어요. 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱을 켜 보세요',
+    );
+    for (const fallback of [
+      '원본 파일을 지울 수 없어 격리를 취소했습니다',
+      '복원에 실패했습니다',
+      '격리 파일을 삭제하지 못했습니다',
+    ]) {
+      const e = mapFsError(fsErr('EACCES', -13), fallback, 'darwin');
       expect((e as ForbiddenException).getResponse()).toEqual({
         code: 'NO_PERMISSION',
-        message: '격리 실패 (권한 없음)',
+        message: withHint(`${fallback} (권한 없음)`),
       });
+    }
+  });
+
+  it('원인을 단정하지 않는다', () => {
+    expect(MAC_FULL_DISK_ACCESS_HINT).toContain('날 수 있어요');
+  });
+
+  it('맥: 권한 오류가 아니면 붙지 않는다', () => {
+    expect(describeFsError(fsErr('ENOENT', -2), 'darwin')).toBe(
+      '파일이 사라짐',
+    );
+    expect(
+      (mapFsError(fsErr('EBUSY', -16), 'x', 'darwin') as HttpException).message,
+    ).not.toContain('전체 디스크');
+  });
+
+  it.each(['win32', 'linux'] as const)('%s에는 붙지 않는다', (platform) => {
+    for (const err of [fsErr('EPERM', -1), fsErr('EACCES', -13)]) {
+      expect(describeFsError(err, platform)).toBe('읽기 권한 없음');
+      expect(
+        (mapFsError(err, '복원 실패', platform) as HttpException).getResponse(),
+      ).toEqual({
+        code: 'NO_PERMISSION',
+        message: '복원 실패 (권한 없음)',
+      });
+      try {
+        rethrowPreQuarantineError('격리 실패', platform)(err);
+        throw new Error('던져야 함');
+      } catch (e) {
+        expect((e as ForbiddenException).getResponse()).toEqual({
+          code: 'NO_PERMISSION',
+          message: '격리 실패 (권한 없음)',
+        });
+      }
     }
   });
 });
