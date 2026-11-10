@@ -2,7 +2,7 @@
 
 > 파일 내용은 내 컴퓨터 밖으로 나가지 않는, 로컬 수동 악성코드 검사 도구 (macOS · Windows)
 
-LocalTotal은 내 컴퓨터에서 **ClamAV**로 파일을 검사하고, **VirusTotal**에는 파일 대신 **SHA-256 해시만** 조회해 결과를 합쳐 보여주는 개인용 웹 앱입니다. 게임 모드처럼 출처가 다양한 파일을 받았을 때 "이거 열어도 되나?"를 빠르게 확인하는 용도로 만들었습니다.
+LocalTotal은 내 컴퓨터에서 **ClamAV**(Windows는 **Microsoft Defender**도 함께)로 파일을 검사하고, **VirusTotal**에는 파일 대신 **SHA-256 해시만** 조회해 결과를 합쳐 보여주는 개인용 웹 앱입니다. 게임 모드처럼 출처가 다양한 파일을 받았을 때 "이거 열어도 되나?"를 빠르게 확인하는 용도로 만들었습니다.
 
 - 현재 지원: **macOS** (Apple Silicon 기준), Windows 10/11
 
@@ -21,7 +21,7 @@ LocalTotal은 내 컴퓨터에서 **ClamAV**로 파일을 검사하고, **VirusT
 
 - **파일은 외부로 전송하지 않음** — VirusTotal에는 해시만 보냅니다. 업로드 기능은 코드에 아예 없습니다.
 - **파일·폴더 검사** — 여러 경로를 한 번에 넣고, 진행률을 실시간(SSE)으로 확인합니다.
-- **판정 합산** — ClamAV 결과와 VirusTotal 탐지 수를 합쳐 위험 / 주의 / 의심 / 깨끗함으로 표시합니다.
+- **판정 합산** — ClamAV(Windows는 Defender 포함) 결과와 VirusTotal 탐지 수를 합쳐 위험 / 주의 / 의심 / 깨끗함으로 표시합니다.
 - **수동 격리·복원** — 사용자가 버튼을 눌렀을 때만 격리합니다. 격리 파일은 실행 권한을 제거해 보관하고, 원래 위치로 복원할 수 있습니다.
 - **제외 목록** — 오탐이 잦은 폴더(MO2 등)·파일·해시를 등록해 실수로 격리하지 않게 합니다. 결과 화면에서 "오탐으로 등록"도 가능합니다.
 - **로컬 전용** — 모든 서버가 `127.0.0.1`에만 열리고, 다른 웹사이트가 로컬 API를 호출하지 못하도록 막습니다.
@@ -32,15 +32,16 @@ LocalTotal은 내 컴퓨터에서 **ClamAV**로 파일을 검사하고, **VirusT
 
 | 항목 | 버전 |
 | --- | --- |
-| macOS | Apple Silicon 권장 (Intel은 아래 참고) |
-| Node.js | 22 이상 (v24에서 확인) |
-| Homebrew | 최신 |
-| ClamAV | 1.5 이상 (Homebrew로 설치) |
+| OS | macOS (Apple Silicon 권장, Intel은 아래 참고) 또는 Windows 10/11 |
+| Node.js | 24.9 이상 (Node 22에서는 API 테스트가 실패함) |
+| Homebrew | 최신 (macOS) |
+| ClamAV | 1.5 이상 (macOS는 Homebrew, Windows는 winget으로 설치) |
+| Microsoft Defender | Windows 기본 포함 (추가 설치 없음) |
 | VirusTotal API 키 | 선택 (무료 키 가능) |
 
-## 설치
+## 설치 (macOS)
 
-아래 명령은 모두 **macOS 터미널** 기준입니다.
+아래 명령은 모두 **macOS 터미널** 기준입니다. Windows는 [Windows에서 설치·실행](#windows에서-설치실행)을 보세요.
 
 ### 1. ClamAV 설치
 
@@ -84,9 +85,9 @@ CLAMD_PORT=3310
 
 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한 → 해당 앱 켜기
 
-권한이 없으면 해당 파일은 `EPERM` 오류로 표시됩니다.
+권한이 없으면 해당 파일은 "읽기 권한 없음"(또는 "읽기 권한이 없습니다")과 함께 이 설정 경로 안내가 표시됩니다.
 
-## 실행
+## 실행 (macOS)
 
 ```bash
 npm run dev
@@ -103,9 +104,9 @@ ClamAV 시그니처 갱신 → `clamd` 실행 → API 서버 → 웹 화면이 �
 | `npm run dev` | clamd + API + 웹 전체 실행 (기본) |
 | `npm run dev:app` | clamd를 따로 띄웠을 때 API + 웹만 실행 |
 
-## Windows에서 실행 (개발 중)
+## Windows에서 설치·실행
 
-> Windows 지원은 개발 중입니다. 현재 ClamAV + Microsoft Defender + VirusTotal 검사, 격리·복원이 동작하는 것을 확인했습니다. 아래 명령은 **PowerShell** 기준입니다.
+Windows 10/11에서는 ClamAV + Microsoft Defender + VirusTotal로 검사합니다. 아래 명령은 **PowerShell** 기준입니다.
 
 1. ClamAV 설치 (1.5 이상)
 
@@ -155,7 +156,7 @@ Set-MpPreference -SubmitSamplesConsent 2
 
 ### 검사
 
-1. Finder에서 파일이나 폴더를 선택하고 `Option + Command + C`로 경로를 복사합니다.
+1. Finder에서 파일이나 폴더를 선택하고 `Option + Command + C`로 경로를 복사합니다(Windows는 파일 탐색기에서 `Ctrl + Shift + C`).
 2. 검사 화면 입력창에 붙여넣습니다(여러 줄 = 여러 경로).
 3. **검사 시작**을 누르면 진행률과 판정별 개수가 실시간으로 표시됩니다.
 
@@ -222,9 +223,11 @@ printf '%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H
 
 검사 화면에 `/tmp/eicar.com`을 넣으면 **위험**(ClamAV `Win.Test.EICAR_HDB-1`)으로 판정되어야 합니다.
 
+Windows에서는 Defender 실시간 보호가 EICAR 파일을 만들자마자 지우거나 열기를 막을 수 있습니다. 판정은 **위험**(ClamAV `Eicar-Test-Signature`, Defender `Virus:DOS/EICAR_Test_File`)으로 나와야 하며, ClamAV 시그니처 이름은 DB 버전에 따라 다를 수 있습니다. PowerShell 큰따옴표 안에서는 EICAR 문자열의 `$`가 변수로 바뀌므로 위 문자열을 그대로 쓰려면 작은따옴표를 쓰세요.
+
 ## 테스트
 
-판정 규칙과 제외 목록 매칭은 Jest 단위 테스트로 검증합니다. 실제 엔진이나 악성코드 없이, 가짜 엔진 결과로 로직만 확인합니다.
+판정 규칙, 제외 목록 매칭, OS별 처리는 단위 테스트로 검증합니다. 실제 엔진이나 악성코드 없이, 가짜 엔진 결과로 로직만 확인합니다.
 
 ```bash
 npm test -w apps/api   # Jest
@@ -233,11 +236,13 @@ npm test -w apps/web   # Node 내장 테스트 (node --test)
 
 - `verdict.spec.ts` — 위험·주의·의심 경계값(VT 2/3/4/5개), ClamAV 우선, 오류 판정
 - `exclusion-matcher.spec.ts` — `/mods`가 `/mods-old`에 걸리지 않는지, 중첩 폴더 우선순위, 대소문자 무시, 해시 매칭
-- `fs-errors.spec.ts`, `input-path.spec.ts` (API), `paths.test.mts`, `platform.test.mts` (웹) — Windows용으로 나눈 처리(파일 열기 오류, 따옴표 경로, `\` 경로 파일명, 화면 문구)가 macOS에서는 이전 코드와 똑같이 동작하는지 이전 구현과 직접 비교. OS는 인자로 넣으므로 어느 OS에서 돌려도 macOS·Windows 경우를 모두 검사
+- `fs-errors.spec.ts`, `input-path.spec.ts` (API), `paths.test.mts`, `platform.test.mts` (웹) — Windows용으로 나눈 처리(파일 열기 오류, 따옴표 경로, `\` 경로 파일명, 화면 문구)가 macOS에서는 이전 코드와 똑같이 동작하는지 이전 구현과 직접 비교. 일부러 바꾼 macOS 동작(권한 오류 403 응답, 전체 디스크 접근 권한 안내)은 "이전 결과 + 바뀐 부분"으로 확인. OS는 인자로 넣으므로 어느 OS에서 돌려도 macOS·Windows 경우를 모두 검사
+- `defender-output.spec.ts`, `engines.service.spec.ts`, `scans.service.spec.ts` — Defender 출력 파싱·샘플 제출 설정, OS별 엔진 목록, 검사 흐름(Defender 결과가 없으면 이전과 동일)
+- `results.test.mts` (웹) — 결과 카드로 보여 줄지 접힌 목록에 넣을지
 
 ## 데이터 저장 위치
 
-`~/Library/Application Support/LocalTotal/`
+macOS `~/Library/Application Support/LocalTotal/`, Windows `%APPDATA%\LocalTotal\`
 
 | 파일 | 내용 |
 | --- | --- |
@@ -246,7 +251,7 @@ npm test -w apps/web   # Node 내장 테스트 (node --test)
 | `exclusions.json` | 제외 목록 |
 | `settings.json` | 설정 |
 
-검사 결과, VT 캐시, VT 사용량은 서버 메모리에만 있으며 재시작하면 사라집니다. 앱을 완전히 지우려면 레포 폴더와 위 폴더를 삭제하면 됩니다.
+검사 결과, VT 캐시, VT 사용량은 서버 메모리에만 있으며 재시작하면 사라집니다. 앱을 완전히 지우려면 레포 폴더와 위 폴더를 삭제하면 됩니다(Windows는 ClamAV 시그니처 DB `%LOCALAPPDATA%\LocalTotal\` 도 함께).
 
 ## 보안
 
@@ -276,7 +281,7 @@ LocalTotal/
 | 증상 | 해결 |
 | --- | --- |
 | ClamAV 배지가 계속 회색 | 첫 실행은 시그니처 다운로드로 오래 걸립니다. 터미널의 `clam` 로그를 확인하세요 |
-| `EADDRINUSE` / 포트 사용 중 | 이전 프로세스가 남아 있습니다. `lsof -i :3310 -i :4000 -i :3000`으로 확인 후 종료 |
+| `EADDRINUSE` / 포트 사용 중 | 이전 프로세스가 남아 있습니다. macOS는 `lsof -i :3310 -i :4000 -i :3000`, Windows PowerShell은 `Get-NetTCPConnection -LocalPort 3310,4000,3000 -State Listen -ErrorAction SilentlyContinue`으로 확인 후 종료 |
 | 검사 시 "읽기 권한이 없습니다", 검사 결과 "읽기 권한 없음", 격리·복원·삭제 시 "권한 없음" | (macOS) 전체 디스크 접근 권한이 꺼져 있으면 날 수 있어요. 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 실행 중인 앱(터미널, VS Code 등)을 켜 보세요. 파일·폴더 자체의 권한이 없을 때도 같은 오류가 나므로, 그때는 권한을 고친 뒤 다시 시도하세요 |
 | VirusTotal 배지 비활성 | `apps/api/.env`의 `VT_API_KEY` 확인 후 재시작 |
 | Intel Mac에서 clamd 실패 | `config/clamav/*.conf`와 `package.json`의 `/opt/homebrew/var/lib/clamav`를 `/usr/local/var/lib/clamav`로 변경 |
@@ -284,7 +289,7 @@ LocalTotal/
 ## 로드맵
 
 - [x] macOS: ClamAV + VirusTotal 해시 조회, 파일·폴더 검사, 격리·복원, 제외 목록, 설정
-- [ ] Windows: ClamAV 실행(`npm run dev:win`) ✅, Windows 화면 문구·경로 처리 ✅, Microsoft Defender(`MpCmdRun`) 연동 ✅, Defender 제외 폴더 동작 확인
+- [x] Windows: ClamAV 실행(`npm run dev:win`), Windows 화면 문구·경로 처리, Microsoft Defender(`MpCmdRun`) 연동, Defender 제외 폴더 동작 확인
 
 ## 라이선스
 
