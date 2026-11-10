@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { useOsTexts } from "@/components/PlatformProvider";
 import { deleteQuarantine, listQuarantine, restoreQuarantine } from "@/lib/api";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { ENGINE_LABEL, FINAL_VERDICT } from "@/lib/labels";
+import { fileName } from "@/lib/paths";
 import type { QuarantineEntry } from "@/lib/types";
 
 function QuarantineRow({
@@ -21,7 +23,7 @@ function QuarantineRow({
     );
     const [error, setError] = useState<string | null>(null);
     const verdict = FINAL_VERDICT[entry.verdict];
-    const fileName = entry.originalPath.split("/").pop() ?? entry.originalPath;
+    const name = fileName(entry.originalPath);
 
     const run = async (fn: () => Promise<void>) => {
         setStage("working");
@@ -38,7 +40,7 @@ function QuarantineRow({
         <li className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <p className="truncate font-semibold">{fileName}</p>
+                    <p className="truncate font-semibold">{name}</p>
                     <p
                         className="truncate font-mono text-xs text-zinc-500"
                         title={entry.originalPath}
@@ -122,6 +124,7 @@ export default function QuarantinePage() {
     const [entries, setEntries] = useState<QuarantineEntry[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const os = useOsTexts();
 
     useEffect(() => {
         let cancelled = false;
@@ -166,7 +169,7 @@ export default function QuarantinePage() {
                 격리된 파일은 실행되지 않도록 이름을 바꾸고 읽기 전용으로
                 보관합니다. 보관 위치:{" "}
                 <code className="rounded bg-zinc-200 px-1 text-xs dark:bg-zinc-800">
-                    ~/Library/Application Support/LocalTotal/quarantine
+                    {os.quarantineDir}
                 </code>
             </p>
 

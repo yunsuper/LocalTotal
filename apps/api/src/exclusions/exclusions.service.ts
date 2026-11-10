@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { realpath, stat } from 'node:fs/promises';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { appDataDir } from '../common/app-paths';
+import { normalizeInputPath } from '../common/input-path';
 import { JsonFile } from '../store/json-file';
 
 export type ExclusionKind = 'folder' | 'file' | 'hash';
@@ -180,7 +181,7 @@ export class ExclusionsService {
     raw: unknown,
   ): Promise<string> {
     if (typeof raw !== 'string' || !raw.trim()) throw bad('값이 필요합니다');
-    const value = raw.trim();
+    const value = kind === 'hash' ? raw.trim() : normalizeInputPath(raw);
 
     if (kind === 'hash') {
       if (!/^[a-f0-9]{64}$/i.test(value))

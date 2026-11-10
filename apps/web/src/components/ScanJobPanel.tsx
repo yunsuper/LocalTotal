@@ -1,3 +1,4 @@
+import { useOsTexts } from "@/components/PlatformProvider";
 import { ScanResultCard } from "@/components/ScanResultCard";
 import {
     JOB_STATUS_LABEL,
@@ -5,6 +6,8 @@ import {
     VERDICT_ORDER,
     VT_MODE_LABEL,
 } from "@/lib/labels";
+import { lastSegment } from "@/lib/paths";
+import { hasLocalEngineError } from "@/lib/results";
 import type { FileScanResult, ScanJobSummary } from "@/lib/types";
 
 export interface JobView {
@@ -25,8 +28,6 @@ interface Props {
     ) => Promise<void>;
 }
 
-const baseName = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
-
 export function ScanJobPanel({
     job,
     onCancel,
@@ -34,6 +35,7 @@ export function ScanJobPanel({
     onMarkFalsePositive,
 }: Props) {
     const { summary, results, error } = job;
+    const os = useOsTexts();
     // 이전 상태(코드 수정 전 만든 패널)에 값이 없어도 안전하게
     const quarantined = job.quarantined ?? [];
     const falsePositives = job.falsePositives ?? [];
@@ -57,7 +59,13 @@ export function ScanJobPanel({
         (r) => r.verdict !== "clean" && r.verdict !== "excluded",
     );
     const excluded = sorted.filter((r) => r.verdict === "excluded");
-    const clean = sorted.filter((r) => r.verdict === "clean");
+    // 깨끗함이지만 로컬 엔진 하나가 오류를 낸 파일(Windows)은 카드로 보여 엔진별 오류를 숨기지 않는다
+    const cleanWithError = sorted.filter(
+        (r) => r.verdict === "clean" && hasLocalEngineError(r),
+    );
+    const clean = sorted.filter(
+        (r) => r.verdict === "clean" && !hasLocalEngineError(r),
+    );
     const isSingleFile =
         summary.status === "done" &&
         summary.total === 1 &&
@@ -80,7 +88,7 @@ export function ScanJobPanel({
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <h2 className="truncate font-semibold">
-                        {summary.paths.map(baseName).join(", ")}
+                        {summary.paths.map(lastSegment).join(", ")}
                     </h2>
                     <p
                         className="truncate font-mono text-xs text-zinc-500"
@@ -139,7 +147,11 @@ export function ScanJobPanel({
             {/* 부가 정보 */}
             <ul className="mt-3 space-y-0.5 text-xs text-zinc-500">
                 {summary.status !== "collecting" && (
-                    <li>{VT_MODE_LABEL[summary.vtMode]}</li>
+                    <li>
+                        {summary.vtMode === "detected-only"
+                            ? os.vtDetectedOnlyLabel
+                            : VT_MODE_LABEL[summary.vtMode]}
+                    </li>
                 )}
                 {(excludedDirs > 0 || excludedFiles > 0) && (
                     <li>
@@ -174,6 +186,7 @@ export function ScanJobPanel({
                 ) : (
                     <>
                         {flagged.map(card)}
+                        {cleanWithError.map(card)}
                         {excluded.length > 0 && (
                             <details className="rounded-lg border border-sky-200 px-4 py-3 dark:border-sky-500/30">
                                 <summary className="cursor-pointer text-sm">

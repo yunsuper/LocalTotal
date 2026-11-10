@@ -1,7 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
-  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,6 +9,7 @@ import { chmod, copyFile, lstat, mkdir, unlink } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { appDataDir, quarantineDir } from '../common/app-paths';
 import { sha256File } from '../common/file-hash';
+import { mapFsError, rethrowPreQuarantineError } from '../common/fs-errors';
 import { ExclusionsService } from '../exclusions/exclusions.service';
 import { ScanJobsService } from '../scans/scan-jobs.service';
 import type { FinalVerdict } from '../scans/verdict';
@@ -38,24 +37,6 @@ const exists = (p: string) =>
     () => true,
     () => false,
   );
-
-function mapFsError(err: unknown, fallback: string): Error {
-  if (err instanceof HttpException) return err;
-  const code = (err as NodeJS.ErrnoException).code;
-  if (code === 'EBUSY') {
-    return new ConflictException({
-      code: 'FILE_BUSY',
-      message: '다른 프로그램이 파일을 사용 중입니다',
-    });
-  }
-  if (code === 'EACCES' || code === 'EPERM') {
-    return new ForbiddenException({
-      code: 'NO_PERMISSION',
-      message: `${fallback} (권한 없음)`,
-    });
-  }
-  return new Error(`${fallback}: ${(err as Error).message}`);
-}
 
 @Injectable()
 export class QuarantineService {
@@ -109,7 +90,11 @@ export class QuarantineService {
           message: '일반 파일만 격리할 수 있습니다',
         });
       }
-      if ((await sha256File(original)) !== result.sha256) {
+      const notQuarantined = rethrowPreQuarantineError(
+        '파일을 열 수 없어 격리하지 못했습니다',
+      );
+      const currentHash = await sha256File(original).catch(notQuarantined);
+      if (currentHash !== result.sha256) {
         throw new ConflictException({
           code: 'FILE_CHANGED',
           message: '검사 후 파일 내용이 바뀌었습니다. 다시 검사해 주세요',
@@ -122,7 +107,9 @@ export class QuarantineService {
       const storedName = `${id}.ltq`;
       const stored = join(dir, storedName);
 
-      await copyFile(original, stored, constants.COPYFILE_EXCL);
+      await copyFile(original, stored, constants.COPYFILE_EXCL).catch(
+        notQuarantined,
+      );
       try {
         if ((await sha256File(stored)) !== result.sha256)
           throw new Error('격리 사본 해시 불일치');

@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { useOsTexts } from "@/components/PlatformProvider";
 import {
     addExclusion,
     deleteExclusion,
@@ -48,6 +49,7 @@ export default function SettingsPage() {
 
     const [kind, setKind] = useState<ExclusionKind>("folder");
     const [value, setValue] = useState("");
+    const os = useOsTexts();
     const [mode, setMode] = useState<ExclusionMode>("scan_only");
     const [note, setNote] = useState("");
     const [adding, setAdding] = useState(false);
@@ -185,8 +187,8 @@ export default function SettingsPage() {
                                 className={`${inputClass} w-32`}
                             />
                             <span className="mt-1 block text-xs text-zinc-500">
-                                이 개수 이하면 모든 파일을 조회하고, 넘으면
-                                ClamAV가 탐지한 파일만 조회해요. (0~500)
+                                이 개수 이하면 모든 파일을 조회하고, 넘으면{" "}
+                                {os.localEngines}가 탐지한 파일만 조회해요. (0~500)
                             </span>
                         </label>
 
@@ -208,8 +210,7 @@ export default function SettingsPage() {
                                 className={`${inputClass} w-32`}
                             />
                             <span className="mt-1 block text-xs text-zinc-500">
-                                이보다 큰 파일은 ClamAV 검사를 건너뛰어요. clamd
-                                설정 한도가 200MB예요. (1~200)
+                                {os.maxFileSizeHint}
                             </span>
                         </label>
 
@@ -269,7 +270,7 @@ export default function SettingsPage() {
                         placeholder={
                             kind === "hash"
                                 ? "SHA-256 64자리"
-                                : "/Users/cherrymac/Games/MO2"
+                                : os.folderPlaceholder
                         }
                         spellCheck={false}
                         className={`${inputClass} w-full font-mono`}

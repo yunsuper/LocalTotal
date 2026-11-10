@@ -10,7 +10,9 @@
         "dev:app": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
         "dev:clam": "sh -c 'mkdir -p /opt/homebrew/var/lib/clamav; freshclam --config-file=config/clamav/freshclam.conf --quiet || echo \"시그니처 갱신 실패: 기존 DB로 계속합니다\"; exec clamd --config-file=config/clamav/clamd.conf --foreground'",
         "dev:api": "npm run start:dev -w apps/api",
-        "dev:web": "npm run dev -w apps/web -- -H 127.0.0.1 -p 3000"
+        "dev:web": "npm run dev -w apps/web -- -H 127.0.0.1 -p 3000",
+        "dev:win": "concurrently -n clam,api,web -c yellow,blue,green \"npm:dev:clam:win\" \"npm:dev:api\" \"npm:dev:web\"",
+        "dev:clam:win": "node scripts/dev-clam-win.mjs"
     },
     "devDependencies": {
         "concurrently": "^9.0.0"
