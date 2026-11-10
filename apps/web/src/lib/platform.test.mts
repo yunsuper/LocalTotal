@@ -11,6 +11,10 @@ const LEGACY = {
     folderPlaceholder: "/Users/cherrymac/Games/MO2", // 설정 화면 제외 목록 입력
     localEngines: "ClamAV", // ScanForm·설정: "ClamAV가 탐지한 파일만 조회"
     vtDetectedOnlyLabel: "VirusTotal: ClamAV 탐지 파일만 조회 (기준 개수 초과)", // labels.ts VT_MODE_LABEL
+    quarantineDir: "~/Library/Application Support/LocalTotal/quarantine", // 격리함 화면
+    // 설정 화면 (JSX 두 줄이 공백 하나로 이어져 렌더링되던 문장)
+    maxFileSizeHint:
+        "이보다 큰 파일은 ClamAV 검사를 건너뛰어요. clamd 설정 한도가 200MB예요. (1~200)",
 };
 
 describe("VT_MODE_LABEL과 맥 문구가 같다", () => {
@@ -37,7 +41,7 @@ describe("Windows 문구", () => {
     });
     it("macOS 용어가 남아 있지 않다", () => {
         const all = Object.values(WINDOWS_TEXTS).join(" ");
-        for (const word of ["Mac", "Finder", "Command", "Option", "/Users/"]) {
+        for (const word of ["Mac", "Finder", "Command", "Option", "/Users/", "~/Library"]) {
             assert.ok(!all.includes(word), word);
         }
     });

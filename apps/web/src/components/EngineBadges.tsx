@@ -14,9 +14,7 @@ export function EngineBadges({ engines, error }: Props) {
     if (!engines)
         return <p className="text-sm text-zinc-500">엔진 상태 확인 중…</p>;
 
-    // macOS에서는 안내가 없어 목록만 그린다 (M7 이전과 같은 화면)
-    const notices = engines.filter((e) => e.notice);
-    const list = (
+    return (
         <ul className="flex flex-wrap gap-2">
             {engines.map((e) => (
                 <li
@@ -43,26 +41,5 @@ export function EngineBadges({ engines, error }: Props) {
                 </li>
             ))}
         </ul>
-    );
-    if (notices.length === 0) return list;
-
-    return (
-        <div className="space-y-2">
-            {list}
-            {notices.map((e) => (
-                <p
-                    key={e.name}
-                    className={`rounded-md border px-3 py-2 text-xs ${
-                        e.notice!.level === "warn"
-                            ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
-                            : "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
-                    }`}
-                >
-                    <span className="font-semibold">{ENGINE_LABEL[e.name]}</span>
-                    {" · "}
-                    {e.notice!.message}
-                </p>
-            ))}
-        </div>
     );
 }

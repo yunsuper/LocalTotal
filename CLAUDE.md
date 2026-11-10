@@ -96,5 +96,7 @@ Defender
 - Windows 특이점: 파일 잠금(`EBUSY`/`EPERM`), 경로 구분자 `\`(웹에서 `split("/")` 금지 → `lib/paths.ts`의 `fileName`/`lastSegment`), 탐색기 "경로로 복사"의 따옴표(API `normalizeInputPath`가 처리), `chmod`는 읽기 전용 속성만 바뀜, `rename` 대상이 잠겨 있으면 실패할 수 있음.
 - 화면의 OS별 문구는 `lib/platform.ts`의 `osTexts`에 모으고 컴포넌트는 `useOsTexts()`로 읽는다(Next 서버의 `process.platform`을 layout에서 전달). 문구를 하드코딩하지 않는다.
 - PowerShell 5.1의 `Set-Content -Encoding utf8`은 BOM을 붙인다. JSON 등을 고칠 때 쓰지 않는다.
+- PowerShell 큰따옴표 안의 `$`는 변수로 치환된다(EICAR 문자열의 `$H`가 사라진 적 있음). 테스트 데이터는 스크립트 파일로 만든다.
+- 테스트로 앱을 띄우기 전에 3310·4000·3000 포트가 비어 있는지 확인한다. 사용자가 직접 띄운 인스턴스가 있을 수 있고, 그 프로세스는 종료하지 않는다.
 - Defender가 차단한 파일을 열면 Node는 `code: 'UNKNOWN'`, `errno: -4094`를 낸다(Win32 오류 225 "file contains a virus"). 실시간 보호는 파일 생성 직후가 아니라 나중에 다른 프로세스가 열 때 반응할 수 있다.
 - PowerShell 5.1 기본 셸이고 npm 스크립트는 `cmd.exe`로 실행된다. `sh -c` 스크립트는 Windows에서 동작하지 않는다.

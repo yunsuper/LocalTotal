@@ -175,6 +175,8 @@ Set-MpPreference -SubmitSamplesConsent 2
 | 🟢 깨끗함 | 위 조건 해당 없음 (VirusTotal 미등록 포함) |
 | 🔵 제외됨 | 제외 목록의 "건너뛰기" 규칙에 해당 |
 
+설정의 최대 파일 크기(기본 200MB)는 ClamAV에만 적용됩니다. Windows의 Defender는 크기와 관계없이 검사합니다(210MB 파일 안의 EICAR 탐지 확인).
+
 Windows에서는 ClamAV와 Defender 중 **하나라도 정상 검사했고 아무도 탐지하지 않았으면 깨끗함**, 둘 다 실패하면 오류입니다. 예를 들어 ClamAV가 크기 제한으로 건너뛰었어도 Defender가 검사해 깨끗하면 깨끗함입니다. 이렇게 한쪽 엔진에 오류가 있는 파일은 "깨끗한 파일" 목록에 접지 않고 결과 카드로 보여 주므로 엔진별 오류를 확인할 수 있습니다.
 
 Defender 제외 목록에 넣은 폴더(예: ModOrganizer, 게임 폴더)도 LocalTotal의 Defender 검사는 건너뛰지 않습니다(`MpCmdRun` 수동 검사는 제외 목록을 적용하지 않는 것을 확인함, Defender 4.18.26100.4). 실시간 보호만 제외됩니다.
@@ -196,7 +198,7 @@ Defender 제외 목록에 넣은 폴더(예: ModOrganizer, 게임 폴더)도 Loc
 ### 격리 · 복원
 
 - 결과 카드의 **격리** 버튼으로 파일을 격리합니다. 검사 이후 파일이 바뀌었으면 격리하지 않습니다.
-- 격리 파일은 `~/Library/Application Support/LocalTotal/quarantine/`에 실행 권한 없이(`0400`) 보관됩니다.
+- 격리 파일은 `~/Library/Application Support/LocalTotal/quarantine/`(Windows: `%APPDATA%\LocalTotal\quarantine\`)에 실행 권한 없이(`0400`, Windows는 읽기 전용) 보관됩니다.
 - **격리함** 화면에서 원래 위치로 복원하거나 영구 삭제할 수 있습니다. 같은 이름이 있으면 `이름 (복원).확장자`로 복원됩니다.
 
 ### 제외 목록

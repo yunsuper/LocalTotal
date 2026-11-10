@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { EngineBadges } from "@/components/EngineBadges";
+import { EngineNotices } from "@/components/EngineNotices";
 import { ScanForm } from "@/components/ScanForm";
 import { ScanJobPanel, type JobView } from "@/components/ScanJobPanel";
 import { fileName } from "@/lib/paths";
@@ -267,6 +268,7 @@ export default function Home() {
                     새로고침
                 </button>
             </section>
+            <EngineNotices engines={engines} />
 
             {enginesLoaded && !clamReady && (
                 <p className="-mt-3 mb-6 text-xs text-zinc-500">

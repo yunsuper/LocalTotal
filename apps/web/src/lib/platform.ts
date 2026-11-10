@@ -14,6 +14,10 @@ export interface OsTexts {
     localEngines: string;
     /** 작업 패널의 VT 모드 표시 (탐지 파일만) */
     vtDetectedOnlyLabel: string;
+    /** 격리함 화면의 보관 위치 */
+    quarantineDir: string;
+    /** 설정 화면 최대 파일 크기 설명 */
+    maxFileSizeHint: string;
 }
 
 export const MAC_TEXTS: OsTexts = {
@@ -24,6 +28,9 @@ export const MAC_TEXTS: OsTexts = {
     folderPlaceholder: "/Users/cherrymac/Games/MO2",
     localEngines: "ClamAV",
     vtDetectedOnlyLabel: "VirusTotal: ClamAV 탐지 파일만 조회 (기준 개수 초과)",
+    quarantineDir: "~/Library/Application Support/LocalTotal/quarantine",
+    maxFileSizeHint:
+        "이보다 큰 파일은 ClamAV 검사를 건너뛰어요. clamd 설정 한도가 200MB예요. (1~200)",
 };
 
 export const WINDOWS_TEXTS: OsTexts = {
@@ -35,6 +42,9 @@ export const WINDOWS_TEXTS: OsTexts = {
     localEngines: "ClamAV·Defender",
     vtDetectedOnlyLabel:
         "VirusTotal: ClamAV·Defender 탐지 파일만 조회 (기준 개수 초과)",
+    quarantineDir: "%APPDATA%\\LocalTotal\\quarantine",
+    maxFileSizeHint:
+        "이보다 큰 파일은 ClamAV 검사를 건너뛰어요(clamd 설정 한도 200MB). Defender는 크기와 관계없이 검사해요. (1~200)",
 };
 
 export function osTexts(platform: string | undefined): OsTexts {

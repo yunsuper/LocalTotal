@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
+import { useOsTexts } from "@/components/PlatformProvider";
 import { deleteQuarantine, listQuarantine, restoreQuarantine } from "@/lib/api";
 import { formatBytes, formatDateTime } from "@/lib/format";
 import { ENGINE_LABEL, FINAL_VERDICT } from "@/lib/labels";
@@ -123,6 +124,7 @@ export default function QuarantinePage() {
     const [entries, setEntries] = useState<QuarantineEntry[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const os = useOsTexts();
 
     useEffect(() => {
         let cancelled = false;
@@ -167,7 +169,7 @@ export default function QuarantinePage() {
                 격리된 파일은 실행되지 않도록 이름을 바꾸고 읽기 전용으로
                 보관합니다. 보관 위치:{" "}
                 <code className="rounded bg-zinc-200 px-1 text-xs dark:bg-zinc-800">
-                    ~/Library/Application Support/LocalTotal/quarantine
+                    {os.quarantineDir}
                 </code>
             </p>
 

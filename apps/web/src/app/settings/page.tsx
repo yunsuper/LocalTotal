@@ -210,8 +210,7 @@ export default function SettingsPage() {
                                 className={`${inputClass} w-32`}
                             />
                             <span className="mt-1 block text-xs text-zinc-500">
-                                이보다 큰 파일은 ClamAV 검사를 건너뛰어요. clamd
-                                설정 한도가 200MB예요. (1~200)
+                                {os.maxFileSizeHint}
                             </span>
                         </label>
 
